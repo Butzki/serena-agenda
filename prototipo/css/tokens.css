@@ -1,0 +1,47 @@
+/* Tokens visuais · Serena Agenda
+   Contrastes calculados (WCAG 1.4.3): ver docs/02-ux-ui.md */
+:root {
+  /* Cor */
+  --cor-primaria: #8A2A55;
+  --cor-primaria-escura: #6E1F42;
+  --cor-fundo: #FBF7F5;
+  --cor-superficie: #FFFFFF;
+  --cor-texto: #2B2024;
+  --cor-texto-suave: #5F4F56;
+  --cor-borda: #E3D8DC;
+  --cor-borda-campo: #7D6B72;
+  --cor-ocupado-fundo: #F5E3EB;
+  --cor-ocupado-texto: #6E1F42;
+  --cor-sucesso: #1B6B47;
+  --cor-sucesso-fundo: #E4F3EB;
+  --cor-perigo: #B3261E;
+  --cor-perigo-fundo: #FBE9E7;
+  --cor-aviso: #7A4B00;
+  --cor-aviso-fundo: #FFF1D6;
+  --cor-foco: #1A56DB;
+
+  /* Tipografia */
+  --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --texto-xs: 0.8125rem;  /* 13 px */
+  --texto-sm: 0.875rem;   /* 14 px */
+  --texto-md: 1rem;       /* 16 px */
+  --texto-lg: 1.25rem;    /* 20 px */
+  --texto-xl: 1.5rem;     /* 24 px */
+  --peso-normal: 400;
+  --peso-medio: 600;
+  --peso-forte: 700;
+
+  /* Espaçamento (base 4 px) */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+
+  /* Forma e interação */
+  --raio: 12px;
+  --raio-sm: 8px;
+  --alvo-toque: 48px;
+  --sombra: 0 1px 2px rgba(43, 32, 36, .08), 0 2px 8px rgba(43, 32, 36, .06);
+}

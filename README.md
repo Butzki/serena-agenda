@@ -344,7 +344,13 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 
 > Observação: a página do Nielsen Norman Group sobre "testar com 5 usuários" não pôde ser lida durante a pesquisa (limite de acesso). Por isso a recomendação de 3–5 entrevistas se apoia no material da aula.
 
----
+## Documentação por aula
+
+| Aula | Entregável | Link |
+|---|---|---|
+| 01 · Descoberta de requisitos | Este documento (README) | você está aqui |
+| 02 · UX/UI e protótipo | Mapa de telas, lo-fi, tokens, hi-fi e teste heurístico | [docs/02-ux-ui.md](docs/02-ux-ui.md) |
+| 02 · Protótipo navegável | 4 telas em HTML (abra `index.html`) | [prototipo/](prototipo/index.html) |
 
 ## Apêndice · Prompts utilizados
 

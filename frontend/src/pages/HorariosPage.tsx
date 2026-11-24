@@ -32,6 +32,9 @@ export function HorariosPage() {
   const [erroFeriado, setErroFeriado] = useState('');
   const [salvandoFeriado, setSalvandoFeriado] = useState(false);
 
+  const [criandoPadrao, setCriandoPadrao] = useState(false);
+  const [erroCriarPadrao, setErroCriarPadrao] = useState('');
+
   async function carregar() {
     setEstado('loading');
     const [resDias, resFeriados] = await Promise.all([
@@ -51,6 +54,28 @@ export function HorariosPage() {
   useEffect(() => {
     carregar();
   }, []);
+
+  /** Autocorreção: se alguém rodou schema.sql sem o seed.sql, a tabela existe mas está vazia (0 de 7 linhas). */
+  async function criarExpedientePadrao() {
+    setErroCriarPadrao('');
+    setCriandoPadrao(true);
+    const padrao = [
+      { dia_semana: 0, fechado: true, hora_abre: null, hora_fecha: null },
+      { dia_semana: 1, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+      { dia_semana: 2, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+      { dia_semana: 3, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+      { dia_semana: 4, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+      { dia_semana: 5, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+      { dia_semana: 6, fechado: false, hora_abre: '08:00', hora_fecha: '20:00' },
+    ];
+    const { error } = await supabase.from('expediente_semana').upsert(padrao, { onConflict: 'dia_semana' });
+    setCriandoPadrao(false);
+    if (error) {
+      setErroCriarPadrao('Não foi possível criar. Verifique sua conexão e tente de novo.');
+      return;
+    }
+    carregar();
+  }
 
   function atualizarDia(dia_semana: number, patch: Partial<ExpedienteDia>) {
     setDias((prev) => prev.map((d) => (d.dia_semana === dia_semana ? { ...d, ...patch } : d)));
@@ -169,7 +194,23 @@ export function HorariosPage() {
         </Card>
       )}
 
-      {estado === 'success' && (
+      {estado === 'success' && dias.length === 0 && (
+        <Card borda="aviso" className="mt-[var(--esp-4)]">
+          <p className="font-bold">Nenhum expediente cadastrado ainda.</p>
+          <p className="text-[length:var(--texto-sm)] text-[var(--cor-texto-suave)] mt-[var(--esp-1)]">
+            Isso acontece quando o banco foi criado sem rodar o <code>seed.sql</code>. Clique abaixo para criar um
+            expediente padrão (segunda a sábado, 08:00–20:00, domingo fechado) — depois é só ajustar.
+          </p>
+          {erroCriarPadrao && (
+            <p className="text-[length:var(--texto-sm)] font-semibold text-[var(--cor-perigo)] mt-[var(--esp-2)]">{erroCriarPadrao}</p>
+          )}
+          <Button className="mt-[var(--esp-3)]" disabled={criandoPadrao} onClick={criarExpedientePadrao}>
+            {criandoPadrao ? 'Criando…' : 'Criar expediente padrão'}
+          </Button>
+        </Card>
+      )}
+
+      {estado === 'success' && dias.length > 0 && (
         <>
           <ul className="list-none m-0 mt-[var(--esp-4)] p-0 grid gap-[var(--esp-3)]">
             {dias.map((d) => (
@@ -264,7 +305,11 @@ export function HorariosPage() {
           <Button bloco className="mt-[var(--esp-4)]" disabled={salvando} onClick={salvarHorarios}>
             {salvando ? 'Salvando…' : 'Salvar horários'}
           </Button>
+        </>
+      )}
 
+      {estado === 'success' && (
+        <>
           <h2 className="text-[length:var(--texto-lg)] font-bold mt-[var(--esp-6)] mb-[var(--esp-2)]">Feriados</h2>
           <p className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)] mb-[var(--esp-3)]">
             Dias específicos em que o salão não abre, além do expediente semanal acima.

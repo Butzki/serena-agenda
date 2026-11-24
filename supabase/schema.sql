@@ -205,3 +205,9 @@ create policy expediente_select_publico on expediente_semana for select using (t
 
 drop policy if exists expediente_update_publico on expediente_semana;
 create policy expediente_update_publico on expediente_semana for update using (true) with check (true);
+
+-- Insert também liberado (e não só update): as 7 linhas normalmente vêm do
+-- seed.sql, mas a tela Horários do front sabe se recriar sozinha se alguém
+-- rodou o schema sem o seed (ver HorariosPage.tsx, botão "Criar expediente padrão").
+drop policy if exists expediente_insert_publico on expediente_semana;
+create policy expediente_insert_publico on expediente_semana for insert with check (true);

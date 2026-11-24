@@ -3,6 +3,7 @@ import { AgendaPage } from './pages/AgendaPage';
 import { NovoAgendamentoPage } from './pages/NovoAgendamentoPage';
 import { ServicosPage } from './pages/ServicosPage';
 import { NovoServicoPage } from './pages/NovoServicoPage';
+import { HorariosPage } from './pages/HorariosPage';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/servicos" element={<ServicosPage />} />
       <Route path="/servicos/novo" element={<NovoServicoPage />} />
       <Route path="/servicos/:id/editar" element={<NovoServicoPage />} />
+      <Route path="/horarios" element={<HorariosPage />} />
       <Route path="*" element={<Navigate to="/agenda" replace />} />
     </Routes>
   );

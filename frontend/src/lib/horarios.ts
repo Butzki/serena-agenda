@@ -14,6 +14,17 @@ const NOME_DIA_FECHADO = [
   'aos sábados',
 ];
 
+/** Nomes dos dias para a tela de Horários (frontend/src/pages/HorariosPage.tsx). */
+export const NOME_DIA = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
+
 export function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

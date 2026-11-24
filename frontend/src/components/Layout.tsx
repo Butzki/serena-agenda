@@ -36,6 +36,15 @@ function IconeServicos() {
   );
 }
 
+function IconeHorarios() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="w-6 h-6">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </svg>
+  );
+}
+
 /** Casca comum às 4 telas: cabeçalho (marca ou voltar), toast de status e navegação inferior.
     Mesma estrutura do protótipo HTML da Aula 02 (topo, main#conteudo, nav-inf). */
 export function Layout({ titulo, marca, voltarPara, ariaVoltar, children }: Props) {
@@ -103,6 +112,10 @@ export function Layout({ titulo, marca, voltarPara, ariaVoltar, children }: Prop
         <NavLink to="/servicos" className={({ isActive }) => linkClasses(isActive)}>
           <IconeServicos />
           Serviços
+        </NavLink>
+        <NavLink to="/horarios" className={({ isActive }) => linkClasses(isActive)}>
+          <IconeHorarios />
+          Horários
         </NavLink>
       </nav>
     </div>

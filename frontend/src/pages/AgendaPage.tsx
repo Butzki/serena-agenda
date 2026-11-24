@@ -169,10 +169,9 @@ export function AgendaPage() {
           {fechado && (
             <Card borda="aviso" className="mt-[var(--esp-4)]">
               <p className="font-bold">{motivo}</p>
-              <p className="text-[length:var(--texto-sm)] text-[var(--cor-texto-suave)] mt-[var(--esp-1)]">
-                Expediente e feriados são configurados nas tabelas <code>expediente_semana</code> e <code>feriados</code>{' '}
-                (Supabase Table Editor) — ver docs/04-frontend.md § 5.
-              </p>
+              <Link to="/horarios" className="text-[length:var(--texto-sm)] text-[var(--cor-primaria)] font-semibold">
+                Ajustar horários →
+              </Link>
             </Card>
           )}
 

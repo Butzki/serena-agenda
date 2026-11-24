@@ -21,7 +21,7 @@
 
 **Componentes base** (`frontend/src/components/ui/`): `Button`, `Input` (também cobre `<select>`), `Card`, `Badge` — todos usando os mesmos tokens visuais já validados e com contraste calculado na Aula 02 (`frontend/src/styles/tokens.css`, cópia de `prototipo/css/tokens.css`), referenciados via `var(--...)` dentro de classes Tailwind (`bg-[var(--cor-primaria)]`), não valores novos.
 
-**4 telas** (`frontend/src/pages/`), mapeadas 1:1 nas rotas:
+**4 telas** (`frontend/src/pages/`), mapeadas 1:1 nas rotas — o mínimo pedido pelo slide:
 
 | Tela | Rota | Arquivo |
 |---|---|---|
@@ -29,6 +29,8 @@
 | Novo agendamento | `/agenda/novo?data=&hora=` | `NovoAgendamentoPage.tsx` |
 | Lista de serviços | `/servicos` | `ServicosPage.tsx` |
 | Cadastro / edição de serviço | `/servicos/novo`, `/servicos/:id/editar` | `NovoServicoPage.tsx` |
+
+**+1 tela, além do pedido:** `Horários` (`/horarios`, `HorariosPage.tsx`) — editar o expediente de cada dia da semana, a pausa de almoço e a lista de feriados. Existe porque a revisão de design da seção 5 criou as tabelas `expediente_semana`/`feriados`, e deixar a proprietária dependente do Table Editor do Supabase para ajustá-las não fazia sentido como produto; o app mesmo precisava dar esse controle.
 
 Toda a casca comum (cabeçalho, toast, navegação inferior) está em `components/Layout.tsx`; o diálogo de confirmação (cancelar/excluir) em `components/ConfirmDialog.tsx` — ambos portados do HTML/CSS/JS do protótipo, não redesenhados do zero.
 
@@ -59,6 +61,7 @@ Abra a URL impressa no terminal (normalmente `http://localhost:5173`). Teste:
 | Novo agendamento | "Carregando serviços…" | "Nenhum serviço cadastrado" (bloqueia o formulário e leva para cadastrar um) | Formulário | Alerta de conflito (`role="alert"`) e erro de salvamento |
 | Serviços | "Carregando serviços…" | "Nenhum serviço cadastrado" | Lista de cartões | Card com motivo do erro + "Tentar de novo" |
 | Cadastro/edição | "Carregando serviço…" (modo edição) | — (não se aplica a um formulário) | Formulário preenchido ou em branco | "Serviço não encontrado" / erro de salvar |
+| Horários | "Carregando horários…" | "Nenhum feriado cadastrado" (lista de feriados) | 7 dias editáveis + lista de feriados | Card com motivo do erro + "Tentar de novo" |
 
 ## 4 · Validação: front vs. banco
 
@@ -73,16 +76,18 @@ Depois de montar as 4 telas, revisei o projeto atrás de lacunas da **mesma cate
 
 | # | Problema | Onde | Categoria | Status |
 |---|---|---|---|---|
-| 1 | Expediente fixo 8h–20h **todos os dias**, inclusive domingo, sem nenhuma exceção possível | `lib/horarios.ts` (herdado do protótipo) | Calendário de funcionamento idealizado | **Corrigido**: tabela `expediente_semana` (um registro por dia da semana, com `fechado`, `hora_abre`, `hora_fecha`) substitui a constante fixa — a proprietária ajusta pelo Table Editor, sem precisar de um dev/deploy novo |
+| 1 | Expediente fixo 8h–20h **todos os dias**, inclusive domingo, sem nenhuma exceção possível | `lib/horarios.ts` (herdado do protótipo) | Calendário de funcionamento idealizado | **Corrigido**: tabela `expediente_semana` (um registro por dia da semana, com `fechado`, `hora_abre`, `hora_fecha`) substitui a constante fixa — editável pela proprietária direto na tela **Horários** do app (`/horarios`), sem precisar de um dev/deploy novo nem acesso ao Supabase |
 | 2 | Feriados (Natal etc.) não eram bloqueados | mesma lacuna, mais ampla | Calendário de funcionamento idealizado | **Corrigido**: tabela `feriados` (data + motivo); checada no front e no trigger antes de qualquer outra regra. Limite aceito: datas fixas por ano, sem cálculo de feriado móvel (Páscoa, Carnaval) — a proprietária adiciona os próximos ela mesma |
 | 3 | Sem intervalo de almoço/pausa no meio do expediente | mesma lacuna, mesma raiz | Calendário de funcionamento idealizado | **Corrigido** (infraestrutura pronta, sem horário pré-definido): `pausa_inicio`/`pausa_fim` opcionais em `expediente_semana`, aparecem como bloco "Pausa (almoço)" na agenda e contam como conflito ao agendar — mas ficam `null` por padrão, porque não há confirmação real da proprietária sobre o horário, e inventar um seria o mesmo erro que o checklist de validação humana (README) já pede para evitar |
 | 4 | "Não compareceu" não tinha desfazer | já registrado em `docs/02-ux-ui.md` § 6.2 (H3, sev. 2) | Reversibilidade de ação | **Corrigido**: botão "Desfazer" na `AgendaPage` quando o status é `noshow`, volta para `ativo` |
 | 5 | Seletor nativo de hora pode confundir AM/PM dependendo do aparelho | já registrado em `docs/02-ux-ui.md` § 6.2 (residual, sev. 1) | Ambiguidade de entrada | Mantido como estava — depende do navegador/SO, não é algo que o app controle |
+| 6 | Editar expediente/feriados exigia abrir o Supabase (Table Editor), inviável para a proprietária no dia a dia | Decisão inicial da seção 5 ("v3, não agora") | Controle de longo prazo pelo usuário final | **Corrigido**: tela **Horários** (`HorariosPage.tsx`, rota `/horarios`) — formulário por dia da semana + lista de feriados com adicionar/remover, usando as mesmas policies de RLS já existentes (sem mudança de schema) |
 
 **O que ficou de fora de propósito (v3, não agora):**
 - Feriados móveis (Páscoa, Carnaval) calculados automaticamente — exige uma lib de calendário, complexidade desproporcional ao MVP.
 - Mais de uma pausa por dia, ou expediente partido em mais de 2 blocos — o modelo atual cobre o caso comum (um expediente, uma pausa), que já é suficiente para o problema real relatado.
-- Uma tela de administração dentro do app para editar `feriados`/`expediente_semana` sem abrir o Supabase — faz mais sentido quando existir login (hoje o MVP é deliberadamente sem login, README § 07), porque uma tela assim precisaria de autenticação para não virar um jeito de qualquer visitante apagar o expediente do salão.
+
+> Nota sobre a tela Horários ser pública: como o MVP continua sem login (README § 07), qualquer pessoa com o link também consegue abrir `/horarios` e mudar o expediente — o mesmo risco aceito e documentado para as demais telas (RNF06), não um risco novo. Com login, essa tela seria a primeira candidata a exigir autenticação.
 
 ## 6 · Deploy
 
@@ -96,11 +101,11 @@ Isso depende da sua conta (Vercel ou Netlify — ambos têm plano grátis):
 ## 7 · Checklist do entregável
 
 - [x] 4 componentes base reutilizáveis (Button, Input, Card, Badge)
-- [x] 4 telas React + Tailwind implementadas
+- [x] 4 telas React + Tailwind implementadas (+ 1 extra, Horários — seção 5, item 6)
 - [x] Integração com Supabase funcionando (CRUD real, RLS da etapa 03)
 - [x] Estados de UI em cada tela (loading/empty/success/error)
 - [x] Validação client-side nos formulários
 - [ ] Responsividade testada em 375px, 768px e 1280px — **depende de você** (abrir no navegador, ver seção 2)
-- [x] Navegação entre as 4 telas (barra inferior + links)
+- [x] Navegação entre as telas (barra inferior com 3 abas + links internos)
 - [x] README com esta documentação (este arquivo)
 - [ ] Deploy (Vercel/Netlify) — **depende de você** (seção 6)

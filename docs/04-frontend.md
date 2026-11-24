@@ -40,6 +40,8 @@ Toda a casca comum (cabeçalho, toast, navegação inferior) está em `component
 
 **Se o seu banco já existia antes da revisão de design (seção 5), atualize-o primeiro:** no SQL Editor do Supabase, cole e rode o `supabase/schema.sql` inteiro de novo (é idempotente, `create or replace`/`drop...if exists` em tudo). Depois rode **só o bloco novo** do `supabase/seed.sql` — o `insert into feriados` e o `insert into expediente_semana` (ambos com `on conflict do nothing`) — **não** rode o `insert into servicos` de novo, ele duplicaria os serviços (não tem proteção contra duplicata, de propósito, porque nomes de serviço podem repetir legitimamente).
 
+> **Esqueceu de rodar o bloco do `expediente_semana` no seed?** A tela **Horários** detecta a tabela vazia e mostra um botão "Criar expediente padrão" que resolve pelo próprio app, sem precisar voltar ao SQL Editor.
+
 ```bash
 cd frontend
 npm install

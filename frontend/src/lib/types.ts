@@ -21,3 +21,20 @@ export type Agendamento = {
 };
 
 export type AgendamentoComServico = Agendamento & { servico: Servico | null };
+
+// v2 (docs/04-frontend.md § 5): dias em que o salão não abre (ex.: Natal).
+export type Feriado = {
+  data: string; // YYYY-MM-DD
+  motivo: string;
+};
+
+// v2 (docs/04-frontend.md § 5): expediente configurável por dia da semana,
+// com pausa (almoço) opcional. dia_semana: 0 = domingo ... 6 = sábado.
+export type ExpedienteDia = {
+  dia_semana: number;
+  fechado: boolean;
+  hora_abre: string | null; // HH:MM:SS
+  hora_fecha: string | null;
+  pausa_inicio: string | null;
+  pausa_fim: string | null;
+};

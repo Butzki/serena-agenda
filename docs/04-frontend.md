@@ -36,6 +36,8 @@ Toda a casca comum (cabeçalho, toast, navegação inferior) está em `component
 
 ## 2 · Como rodar e testar localmente
 
+**Se o seu banco já existia antes da revisão de design (seção 5), atualize-o primeiro:** no SQL Editor do Supabase, cole e rode o `supabase/schema.sql` inteiro de novo (é idempotente, `create or replace`/`drop...if exists` em tudo). Depois rode **só o bloco novo** do `supabase/seed.sql` — o `insert into feriados` e o `insert into expediente_semana` (ambos com `on conflict do nothing`) — **não** rode o `insert into servicos` de novo, ele duplicaria os serviços (não tem proteção contra duplicata, de propósito, porque nomes de serviço podem repetir legitimamente).
+
 ```bash
 cd frontend
 npm install
@@ -62,28 +64,25 @@ Abra a URL impressa no terminal (normalmente `http://localhost:5173`). Teste:
 
 Pergunta do slide da Aula 04: *"você validou no front apenas formato (UX) e deixou integridade para o banco? Ou duplicou validação sem necessidade?"*
 
-- **Formato** (tamanho mínimo de nome, dígitos do telefone, faixa de duração, horário dentro do expediente) é validado **só no front**, para dar feedback imediato — o banco também tem `check constraints` equivalentes (`supabase/schema.sql`), mas eles existem como rede de segurança, não como segunda fonte de mensagem de erro ao usuário.
-- **Regra de negócio** (RF05 conflito de horário, e agora também "fechado aos domingos") é checada **nas duas camadas de propósito**: o front consulta antes de salvar (resposta rápida, com sugestão de horários), e o trigger do banco (`checar_conflito_agendamento`) é quem decide de verdade — se as duas discordarem (corrida entre duas abas, por exemplo), o erro do banco é capturado e reaproveitado na mesma UI de alerta (ver `NovoAgendamentoPage.tsx`).
+- **Formato** (tamanho mínimo de nome, dígitos do telefone) é validado **só no front**, para dar feedback imediato — o banco também tem `check constraints` equivalentes (`supabase/schema.sql`), mas eles existem como rede de segurança, não como segunda fonte de mensagem de erro ao usuário.
+- **Regra de negócio** (RF05 conflito de horário; fechado por domingo/feriado; fora do expediente do dia; dentro da pausa de almoço) é checada **nas duas camadas de propósito, com a mesma função de decisão dos dois lados**: o front chama `motivoConflito()` (`lib/horarios.ts`) antes de salvar — resposta rápida, com sugestão de horários alternativos já filtrados pelo próprio expediente — e o trigger do banco (`checar_conflito_agendamento`) decide de verdade, na mesma ordem de prioridade (feriado → dia da semana → expediente → pausa → conflito com outro agendamento). Se as duas camadas discordarem (corrida entre duas abas, ou alguém chamando a API direto), o erro do banco é capturado e reaproveitado na mesma UI de alerta (`NovoAgendamentoPage.tsx`).
 
-## 5 · Revisão de design: problemas encontrados
+## 5 · Revisão de design: problemas encontrados e corrigidos (v2)
 
-Depois de montar as telas, revisei o projeto atrás de lacunas da **mesma categoria** do problema que você levantou ("o sistema assume um calendário de funcionamento idealizado, sem fechamento"). Three descobertas, duas já existentes nos documentos das aulas anteriores:
+Depois de montar as 4 telas, revisei o projeto atrás de lacunas da **mesma categoria** do problema que você levantou ("o sistema assume um calendário de funcionamento idealizado, sem fechamento, sem pausa, sem desfazer erro de operação"). Cinco achados; quatro foram corrigidos nesta v2, incorporando o que antes estava listado como "pendência":
 
 | # | Problema | Onde | Categoria | Status |
 |---|---|---|---|---|
-| 1 | Expediente fixo 8h–20h **todos os dias**, inclusive domingo | `lib/horarios.ts` (herdado do protótipo) | Calendário de funcionamento idealizado | **Corrigido agora**: `salaoFechado()` bloqueia domingo no front (`AgendaPage`, `NovoAgendamentoPage`) e no banco (trigger, `schema.sql`) |
-| 2 | Feriados (Natal, etc.) não são bloqueados | mesma lacuna, mais ampla | Calendário de funcionamento idealizado | **Não implementado** — documentado como pendência abaixo; calendário de feriados móveis/regionais é complexidade de produto final, fora do escopo do MVP (README § 07) |
-| 3 | Sem intervalo de almoço/pausa no meio do expediente — o sistema aceita agendar em qualquer janela entre 8h e 20h sem exceções | mesma lacuna, mesma raiz | Calendário de funcionamento idealizado | **Não implementado** — mesma justificativa do item 2 |
-| 4 | "Não compareceu" não tem desfazer | já registrado em `docs/02-ux-ui.md` § 6.2 (H3, sev. 2) | Reversibilidade de ação (categoria adjacente, não a mesma) | Mantido como estava — fora do pedido atual |
-| 5 | Seletor nativo de hora pode confundir AM/PM dependendo do aparelho | já registrado em `docs/02-ux-ui.md` § 6.2 (residual, sev. 1) | Ambiguidade de entrada, pode levar a agendar no horário errado | Mantido como estava — depende do navegador/SO, não é algo que o app controle |
+| 1 | Expediente fixo 8h–20h **todos os dias**, inclusive domingo, sem nenhuma exceção possível | `lib/horarios.ts` (herdado do protótipo) | Calendário de funcionamento idealizado | **Corrigido**: tabela `expediente_semana` (um registro por dia da semana, com `fechado`, `hora_abre`, `hora_fecha`) substitui a constante fixa — a proprietária ajusta pelo Table Editor, sem precisar de um dev/deploy novo |
+| 2 | Feriados (Natal etc.) não eram bloqueados | mesma lacuna, mais ampla | Calendário de funcionamento idealizado | **Corrigido**: tabela `feriados` (data + motivo); checada no front e no trigger antes de qualquer outra regra. Limite aceito: datas fixas por ano, sem cálculo de feriado móvel (Páscoa, Carnaval) — a proprietária adiciona os próximos ela mesma |
+| 3 | Sem intervalo de almoço/pausa no meio do expediente | mesma lacuna, mesma raiz | Calendário de funcionamento idealizado | **Corrigido** (infraestrutura pronta, sem horário pré-definido): `pausa_inicio`/`pausa_fim` opcionais em `expediente_semana`, aparecem como bloco "Pausa (almoço)" na agenda e contam como conflito ao agendar — mas ficam `null` por padrão, porque não há confirmação real da proprietária sobre o horário, e inventar um seria o mesmo erro que o checklist de validação humana (README) já pede para evitar |
+| 4 | "Não compareceu" não tinha desfazer | já registrado em `docs/02-ux-ui.md` § 6.2 (H3, sev. 2) | Reversibilidade de ação | **Corrigido**: botão "Desfazer" na `AgendaPage` quando o status é `noshow`, volta para `ativo` |
+| 5 | Seletor nativo de hora pode confundir AM/PM dependendo do aparelho | já registrado em `docs/02-ux-ui.md` § 6.2 (residual, sev. 1) | Ambiguidade de entrada | Mantido como estava — depende do navegador/SO, não é algo que o app controle |
 
-**Pendências registradas para uma v2** (não implementadas de propósito, para não expandir o escopo do MVP sem necessidade):
-- Lista de feriados (fixos e móveis) bloqueando agendamento.
-- Configuração de expediente por dia da semana (hoje é um único par `HORA_ABRE`/`HORA_FECHA` para todos os dias que não sejam domingo).
-- Intervalo de almoço/pausa configurável.
-- Desfazer "não compareceu".
-
-> Essas quatro pendências têm a mesma causa raiz: o modelo de dados não tem uma tabela de "exceções de expediente" (feriado, pausa, dia especial). Resolver as quatro juntas, numa tabela `excecoes_horario(data, hora_inicio, hora_fim, motivo)`, é a recomendação para a v2 — mas isso é desenho de produto final, não MVP (ver tabela "Três objetos, três objetivos" da Aula 01: MVP é "banco real, sem migrações"; uma tabela de exceções com motivo e tipo já pede uma migração de verdade).
+**O que ficou de fora de propósito (v3, não agora):**
+- Feriados móveis (Páscoa, Carnaval) calculados automaticamente — exige uma lib de calendário, complexidade desproporcional ao MVP.
+- Mais de uma pausa por dia, ou expediente partido em mais de 2 blocos — o modelo atual cobre o caso comum (um expediente, uma pausa), que já é suficiente para o problema real relatado.
+- Uma tela de administração dentro do app para editar `feriados`/`expediente_semana` sem abrir o Supabase — faz mais sentido quando existir login (hoje o MVP é deliberadamente sem login, README § 07), porque uma tela assim precisaria de autenticação para não virar um jeito de qualquer visitante apagar o expediente do salão.
 
 ## 6 · Deploy
 

@@ -38,29 +38,77 @@ create index if not exists idx_agendamentos_data on agendamentos (data);
 create index if not exists idx_agendamentos_servico on agendamentos (servico_id);
 
 -- ============================================================
+-- 02b · Tabela feriados (v2 — revisão de design pós-Aula 04, docs/04-frontend.md § 5)
+-- ============================================================
+-- Dá à proprietária controle de longo prazo sobre dias fechados (Natal, Ano
+-- Novo etc.) sem precisar de um dev para mudar código e fazer novo deploy:
+-- basta adicionar/remover uma linha nesta tabela pelo Table Editor do Supabase.
+-- Datas fixas por ano (ex.: 25/12 de cada ano é uma linha própria) — é uma
+-- simplificação aceita: não há cálculo de feriado móvel (Páscoa, Carnaval).
+create table if not exists feriados (
+  data   date primary key,
+  motivo text not null check (char_length(motivo) >= 3)
+);
+
+comment on table feriados is 'v2: dias em que o salão não abre (datas específicas, ex.: Natal). Gerenciado pela proprietária no Table Editor — ver docs/04-frontend.md § 5.';
+
+-- ============================================================
+-- 02c · Tabela expediente_semana (v2 — revisão de design pós-Aula 04, docs/04-frontend.md § 5)
+-- ============================================================
+-- Substitui o par fixo HORA_ABRE/HORA_FECHA (8h-20h todo dia) por um
+-- expediente configurável por dia da semana, com pausa (almoço) opcional —
+-- a proprietária ajusta pelo Table Editor, sem depender de um dev.
+-- dia_semana: 0 = domingo ... 6 = sábado (igual a extract(dow from data)).
+create table if not exists expediente_semana (
+  dia_semana   integer primary key check (dia_semana between 0 and 6),
+  fechado      boolean not null default false,
+  hora_abre    time,
+  hora_fecha   time,
+  pausa_inicio time,
+  pausa_fim    time,
+  check (fechado or (hora_abre is not null and hora_fecha is not null and hora_abre < hora_fecha)),
+  check ((pausa_inicio is null) = (pausa_fim is null)),
+  check (
+    pausa_inicio is null
+    or (hora_abre is not null and hora_fecha is not null
+        and pausa_inicio >= hora_abre and pausa_fim <= hora_fecha and pausa_inicio < pausa_fim)
+  )
+);
+
+comment on table expediente_semana is 'v2: expediente e pausa (almoço) por dia da semana. Gerenciado pela proprietária no Table Editor — ver docs/04-frontend.md § 5.';
+
+-- ============================================================
 -- 03 · RF05 — Impedir conflito de horário e expediente inválido (defesa em profundidade)
 -- ============================================================
 -- O front (Aula 02/04) já valida isso antes de enviar. Este trigger garante
 -- a mesma regra no banco, para o caso de duas requisições simultâneas ou de
 -- qualquer cliente que grave direto via SDK/API (ver docs/03-backend.md, item 4
--- e docs/04-frontend.md, revisão de design "fechado aos domingos").
---
--- Suposição de negócio (documentada, não confirmada com a proprietária):
--- domingo (dow = 0) é fechado. Ajuste o "0" abaixo se o dia certo for outro.
+-- e docs/04-frontend.md § 5, revisão de design "calendário de funcionamento
+-- idealizado": feriado específico → expediente do dia da semana → fora do
+-- horário → pausa de almoço → conflito com outro agendamento, nessa ordem).
 create or replace function checar_conflito_agendamento()
 returns trigger
 language plpgsql
 as $$
 declare
-  duracao_novo integer;
-  fim_novo     time;
+  duracao_novo   integer;
+  fim_novo       time;
+  motivo_feriado text;
+  exp            expediente_semana%rowtype;
 begin
   if new.status <> 'ativo' then
     return new;
   end if;
 
-  if extract(dow from new.data) = 0 then
-    raise exception 'O salão não abre aos domingos (%).', new.data
+  select motivo into motivo_feriado from feriados where data = new.data;
+  if motivo_feriado is not null then
+    raise exception 'O salão não abre em % (%).', new.data, motivo_feriado
+      using errcode = 'P0001';
+  end if;
+
+  select * into exp from expediente_semana where dia_semana = extract(dow from new.data);
+  if exp is null or exp.fechado then
+    raise exception 'O salão não abre nesse dia da semana (%).', new.data
       using errcode = 'P0001';
   end if;
 
@@ -69,6 +117,16 @@ begin
     duracao_novo := 30; -- mesma duração padrão usada no protótipo quando o serviço foi removido
   end if;
   fim_novo := new.hora + make_interval(mins => duracao_novo);
+
+  if new.hora < exp.hora_abre or fim_novo > exp.hora_fecha then
+    raise exception 'Fora do horário de funcionamento (% às %).', exp.hora_abre, exp.hora_fecha
+      using errcode = 'P0001';
+  end if;
+
+  if exp.pausa_inicio is not null and new.hora < exp.pausa_fim and fim_novo > exp.pausa_inicio then
+    raise exception 'Esse horário cai no intervalo de almoço (% às %).', exp.pausa_inicio, exp.pausa_fim
+      using errcode = 'P0001';
+  end if;
 
   if exists (
     select 1
@@ -106,6 +164,8 @@ create trigger trg_checar_conflito
 
 alter table servicos enable row level security;
 alter table agendamentos enable row level security;
+alter table feriados enable row level security;
+alter table expediente_semana enable row level security;
 
 drop policy if exists servicos_select_publico on servicos;
 create policy servicos_select_publico on servicos for select using (true);
@@ -130,3 +190,18 @@ create policy agendamentos_update_publico on agendamentos for update using (true
 
 drop policy if exists agendamentos_delete_publico on agendamentos;
 create policy agendamentos_delete_publico on agendamentos for delete using (true);
+
+drop policy if exists feriados_select_publico on feriados;
+create policy feriados_select_publico on feriados for select using (true);
+
+drop policy if exists feriados_insert_publico on feriados;
+create policy feriados_insert_publico on feriados for insert with check (true);
+
+drop policy if exists feriados_delete_publico on feriados;
+create policy feriados_delete_publico on feriados for delete using (true);
+
+drop policy if exists expediente_select_publico on expediente_semana;
+create policy expediente_select_publico on expediente_semana for select using (true);
+
+drop policy if exists expediente_update_publico on expediente_semana;
+create policy expediente_update_publico on expediente_semana for update using (true) with check (true);

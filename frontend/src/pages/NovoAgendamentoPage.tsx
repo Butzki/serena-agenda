@@ -5,8 +5,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
-import { HORA_ABRE, HORA_FECHA, conflito, iso, mascararTelefone, min, salaoFechado, sugestoes } from '../lib/horarios';
-import type { AgendamentoComServico, Servico } from '../lib/types';
+import { iso, mascararTelefone, motivoConflito, motivoFechado, sugestoes } from '../lib/horarios';
+import type { AgendamentoComServico, ExpedienteDia, Feriado, Servico } from '../lib/types';
 
 type EstadoServicos = 'loading' | 'pronto' | 'vazio' | 'error';
 
@@ -19,6 +19,8 @@ export function NovoAgendamentoPage() {
   const [estadoServicos, setEstadoServicos] = useState<EstadoServicos>('loading');
   const [erroServicos, setErroServicos] = useState('');
   const [servicos, setServicos] = useState<Servico[]>([]);
+  const [feriados, setFeriados] = useState<Feriado[]>([]);
+  const [expedientes, setExpedientes] = useState<ExpedienteDia[]>([]);
 
   const [clienteNome, setClienteNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -33,15 +35,21 @@ export function NovoAgendamentoPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: linhas, error } = await supabase.from('servicos').select('*').order('nome');
-      if (error) {
-        setErroServicos(error.message);
+      const [resServicos, resFeriados, resExpediente] = await Promise.all([
+        supabase.from('servicos').select('*').order('nome'),
+        supabase.from('feriados').select('*'),
+        supabase.from('expediente_semana').select('*'),
+      ]);
+      if (resServicos.error) {
+        setErroServicos(resServicos.error.message);
         setEstadoServicos('error');
         return;
       }
-      setServicos(linhas);
-      setEstadoServicos(linhas.length === 0 ? 'vazio' : 'pronto');
-      if (linhas.length > 0) setServicoId((atual) => atual || linhas[0].id);
+      setServicos(resServicos.data);
+      setFeriados(resFeriados.data ?? []);
+      setExpedientes(resExpediente.data ?? []);
+      setEstadoServicos(resServicos.data.length === 0 ? 'vazio' : 'pronto');
+      if (resServicos.data.length > 0) setServicoId((atual) => atual || resServicos.data[0].id);
     })();
   }, []);
 
@@ -53,7 +61,10 @@ export function NovoAgendamentoPage() {
     if (!servicoId) e.servicoId = 'Escolha um serviço.';
     const passado = !data || !hora || new Date(`${data}T${hora}`) < new Date();
     if (!data) e.data = 'Escolha a data.';
-    else if (salaoFechado(data)) e.data = 'O salão não abre aos domingos. Escolha outro dia.';
+    else {
+      const motivo = motivoFechado(data, feriados, expedientes);
+      if (motivo) e.data = `${motivo} Escolha outro dia.`;
+    }
     if (!hora) e.hora = 'Escolha a hora.';
     else if (passado) e.hora = 'Não é possível agendar em horário que já passou.';
     setErros(e);
@@ -67,12 +78,6 @@ export function NovoAgendamentoPage() {
     if (!validar()) return;
 
     const servico = servicos.find((s) => s.id === servicoId)!;
-
-    if (min(hora) < HORA_ABRE || min(hora) + servico.duracao_min > HORA_FECHA) {
-      setErros((e) => ({ ...e, hora: 'Fora do horário de funcionamento (08:00 às 20:00).' }));
-      return;
-    }
-
     setSalvando(true);
 
     const { data: doDia, error: erroConsulta } = await supabase
@@ -87,13 +92,10 @@ export function NovoAgendamentoPage() {
     }
 
     const doDiaTipado = doDia as unknown as AgendamentoComServico[];
-    const c = conflito(doDiaTipado, hora, servico.duracao_min);
-    if (c) {
+    const motivo = motivoConflito(doDiaTipado, data, hora, servico.duracao_min, feriados, expedientes);
+    if (motivo) {
       setSalvando(false);
-      setConflitoMsg({
-        texto: `${c.cliente_nome} já está agendada às ${c.hora.slice(0, 5)} (${c.servico?.nome ?? 'serviço'}). Escolha outro horário.`,
-        sugestoes: sugestoes(doDiaTipado, hora, servico.duracao_min),
-      });
+      setConflitoMsg({ texto: motivo, sugestoes: sugestoes(doDiaTipado, data, hora, servico.duracao_min, feriados, expedientes) });
       return;
     }
 
@@ -109,12 +111,15 @@ export function NovoAgendamentoPage() {
     setSalvando(false);
 
     if (error) {
-      // Defesa em profundidade do banco (RF05, docs/03-backend.md item 4): pode disparar
-      // em corrida com outra escrita simultânea, mesmo já tendo passado na checagem acima.
-      if (error.message.includes('Conflito de horário')) {
-        setConflitoMsg({ texto: 'Esse horário acabou de ser ocupado por outro agendamento. Escolha outro.', sugestoes: [] });
-      } else if (error.message.includes('não abre aos domingos')) {
-        setErros((e) => ({ ...e, data: 'O salão não abre aos domingos. Escolha outro dia.' }));
+      // Defesa em profundidade do banco (RF05, docs/03-backend.md item 4; docs/04-frontend.md § 5):
+      // pode disparar em corrida com outra escrita simultânea, mesmo já tendo passado na checagem acima.
+      if (
+        error.message.includes('Conflito de horário') ||
+        error.message.includes('não abre') ||
+        error.message.includes('Fora do horário') ||
+        error.message.includes('intervalo de almoço')
+      ) {
+        setConflitoMsg({ texto: error.message, sugestoes: [] });
       } else {
         setErroSalvar('Não foi possível salvar. Verifique sua conexão e tente de novo.');
       }

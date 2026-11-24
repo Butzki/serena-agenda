@@ -7,21 +7,21 @@ import { Badge } from '../components/ui/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
 import {
-  HORA_ABRE,
-  HORA_FECHA,
   addDias,
   dataExtensa,
-  duracaoOuPadrao,
+  expedienteDoDia,
   hhmm,
+  intervalosOcupados,
   iso,
   min,
-  salaoFechado,
+  motivoFechado,
 } from '../lib/horarios';
-import type { AgendamentoComServico } from '../lib/types';
+import type { AgendamentoComServico, ExpedienteDia, Feriado } from '../lib/types';
 
 type Estado = 'loading' | 'success' | 'error';
 type Item =
   | { tipo: 'livre'; t: number; de: number; ate: number }
+  | { tipo: 'pausa'; t: number; de: number; ate: number }
   | { tipo: 'ag'; t: number; a: AgendamentoComServico };
 
 export function AgendaPage() {
@@ -32,20 +32,25 @@ export function AgendaPage() {
   const [estado, setEstado] = useState<Estado>('loading');
   const [erro, setErro] = useState('');
   const [agendamentos, setAgendamentos] = useState<AgendamentoComServico[]>([]);
+  const [feriados, setFeriados] = useState<Feriado[]>([]);
+  const [expedientes, setExpedientes] = useState<ExpedienteDia[]>([]);
 
   const carregar = useCallback(async () => {
     setEstado('loading');
-    const { data: linhas, error } = await supabase
-      .from('agendamentos')
-      .select('*, servico:servicos(*)')
-      .eq('data', data)
-      .order('hora');
-    if (error) {
-      setErro(error.message);
+    const [resAgendamentos, resFeriados, resExpediente] = await Promise.all([
+      supabase.from('agendamentos').select('*, servico:servicos(*)').eq('data', data).order('hora'),
+      supabase.from('feriados').select('*'),
+      supabase.from('expediente_semana').select('*'),
+    ]);
+    if (resAgendamentos.error) {
+      setErro(resAgendamentos.error.message);
       setEstado('error');
       return;
     }
-    setAgendamentos(linhas as unknown as AgendamentoComServico[]);
+    setAgendamentos(resAgendamentos.data as unknown as AgendamentoComServico[]);
+    // feriados/expediente são avisos complementares; se falharem, a tela ainda funciona (assume aberto).
+    setFeriados(resFeriados.data ?? []);
+    setExpedientes(resExpediente.data ?? []);
     setEstado('success');
   }, [data]);
 
@@ -55,17 +60,28 @@ export function AgendaPage() {
 
   const ativos = agendamentos.filter((a) => a.status !== 'cancelado');
   const todos = agendamentos;
-  const fechado = salaoFechado(data);
+  const motivo = motivoFechado(data, feriados, expedientes);
+  const fechado = !!motivo;
+  const expediente = expedienteDoDia(data, expedientes);
 
   const itens: Item[] = [];
-  if (!fechado) {
-    let cursor = HORA_ABRE;
-    ativos.forEach((a) => {
-      const ini = min(a.hora.slice(0, 5));
+  if (!fechado && expediente?.hora_abre && expediente?.hora_fecha) {
+    const abre = min(expediente.hora_abre.slice(0, 5));
+    const fecha = min(expediente.hora_fecha.slice(0, 5));
+    let cursor = abre;
+    intervalosOcupados(ativos, expediente).forEach(({ ini, fim }) => {
       if (ini - cursor >= 30) itens.push({ tipo: 'livre', t: cursor, de: cursor, ate: ini });
-      cursor = Math.max(cursor, ini + duracaoOuPadrao(a));
+      cursor = Math.max(cursor, fim);
     });
-    if (HORA_FECHA - cursor >= 30) itens.push({ tipo: 'livre', t: cursor, de: cursor, ate: HORA_FECHA });
+    if (fecha - cursor >= 30) itens.push({ tipo: 'livre', t: cursor, de: cursor, ate: fecha });
+    if (expediente.pausa_inicio && expediente.pausa_fim) {
+      itens.push({
+        tipo: 'pausa',
+        t: min(expediente.pausa_inicio.slice(0, 5)),
+        de: min(expediente.pausa_inicio.slice(0, 5)),
+        ate: min(expediente.pausa_fim.slice(0, 5)),
+      });
+    }
   }
   todos.forEach((a) => itens.push({ tipo: 'ag', t: min(a.hora.slice(0, 5)), a }));
   itens.sort((x, y) => x.t - y.t);
@@ -89,6 +105,13 @@ export function AgendaPage() {
 
   async function marcarNoShow(a: AgendamentoComServico) {
     const { error } = await supabase.from('agendamentos').update({ status: 'noshow' }).eq('id', a.id);
+    if (error) return;
+    carregar();
+  }
+
+  /** Corrige um clique indevido em "Não compareceu" (achado no teste heurístico da Aula 02, § 6.2 H3). */
+  async function desfazerNoShow(a: AgendamentoComServico) {
+    const { error } = await supabase.from('agendamentos').update({ status: 'ativo' }).eq('id', a.id);
     if (error) return;
     carregar();
   }
@@ -145,9 +168,10 @@ export function AgendaPage() {
 
           {fechado && (
             <Card borda="aviso" className="mt-[var(--esp-4)]">
-              <p className="font-bold">O salão não abre aos domingos.</p>
+              <p className="font-bold">{motivo}</p>
               <p className="text-[length:var(--texto-sm)] text-[var(--cor-texto-suave)] mt-[var(--esp-1)]">
-                Suposição de negócio (ver docs/04-frontend.md) — ajuste <code>DIA_SEMANA_FECHADO</code> se o dia certo for outro.
+                Expediente e feriados são configurados nas tabelas <code>expediente_semana</code> e <code>feriados</code>{' '}
+                (Supabase Table Editor) — ver docs/04-frontend.md § 5.
               </p>
             </Card>
           )}
@@ -168,7 +192,7 @@ export function AgendaPage() {
           <ul className="list-none m-0 mt-[var(--esp-4)] p-0 grid gap-[var(--esp-3)]" aria-label="Agenda do dia">
             {itens.map((item, idx) => (
               <li key={idx} className="grid grid-cols-[56px_1fr] gap-[var(--esp-3)] items-start">
-                {item.tipo === 'livre' ? (
+                {item.tipo === 'livre' && (
                   <>
                     <time className="font-bold pt-[var(--esp-4)] tabular-nums">{hhmm(item.de)}</time>
                     <Link
@@ -182,7 +206,20 @@ export function AgendaPage() {
                       <span aria-hidden="true">＋</span>
                     </Link>
                   </>
-                ) : (
+                )}
+
+                {item.tipo === 'pausa' && (
+                  <>
+                    <time className="font-bold pt-[var(--esp-4)] tabular-nums">{hhmm(item.de)}</time>
+                    <div className="flex items-center justify-between rounded-[var(--raio)] px-[var(--esp-4)] py-[var(--esp-2)] min-h-[var(--alvo-toque)] text-[var(--cor-texto-suave)] font-semibold bg-[#ECE6E8]">
+                      <span>
+                        Pausa (almoço) das {hhmm(item.de)} às {hhmm(item.ate)}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {item.tipo === 'ag' && (
                   <>
                     <time className="font-bold pt-[var(--esp-4)] tabular-nums">{item.a.hora.slice(0, 5)}</time>
                     <Card
@@ -216,6 +253,18 @@ export function AgendaPage() {
                             onClick={() => marcarNoShow(item.a)}
                           >
                             Não compareceu
+                          </Button>
+                        </div>
+                      )}
+                      {item.a.status === 'noshow' && (
+                        <div className="mt-[var(--esp-3)]">
+                          <Button
+                            variante="secundario"
+                            pequeno
+                            aria-label={`Desfazer "não compareceu" de ${item.a.cliente_nome}`}
+                            onClick={() => desfazerNoShow(item.a)}
+                          >
+                            Desfazer
                           </Button>
                         </div>
                       )}

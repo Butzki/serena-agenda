@@ -1,0 +1,16 @@
+{
+  "name": "serena-agenda",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:crud": "tsx scripts/test-crud.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

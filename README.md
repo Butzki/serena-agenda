@@ -12,6 +12,7 @@
 - **Escopo:** 9 RFs, 6 RNFs mensuráveis, 5 histórias de usuário com critérios de aceite testáveis.
 - **Fora do MVP:** login, agendamento pela cliente, lembretes, pagamento, modo offline.
 - **Status:** validado documentalmente com referências (ver [Validação humana](#validação-humana)); falta validar com usuárias reais.
+- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ (schema, RLS e CRUD testados — [docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ⏳.
 
 ## Sumário
 
@@ -351,6 +352,7 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 | 01 · Descoberta de requisitos | Este documento (README) | você está aqui |
 | 02 · UX/UI e protótipo | Mapa de telas, lo-fi, tokens, hi-fi e teste heurístico | [docs/02-ux-ui.md](docs/02-ux-ui.md) |
 | 02 · Protótipo navegável | 4 telas em HTML (abra `index.html`) | [prototipo/](prototipo/index.html) |
+| 03 · Backend / Supabase | Modelagem, schema SQL, RLS, SDK e teste de CRUD | [docs/03-backend.md](docs/03-backend.md) |
 
 ## Apêndice · Prompts utilizados
 

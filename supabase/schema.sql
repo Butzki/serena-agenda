@@ -38,11 +38,15 @@ create index if not exists idx_agendamentos_data on agendamentos (data);
 create index if not exists idx_agendamentos_servico on agendamentos (servico_id);
 
 -- ============================================================
--- 03 · RF05 — Impedir conflito de horário (defesa em profundidade)
+-- 03 · RF05 — Impedir conflito de horário e expediente inválido (defesa em profundidade)
 -- ============================================================
 -- O front (Aula 02/04) já valida isso antes de enviar. Este trigger garante
 -- a mesma regra no banco, para o caso de duas requisições simultâneas ou de
--- qualquer cliente que grave direto via SDK/API (ver docs/03-backend.md, item 4).
+-- qualquer cliente que grave direto via SDK/API (ver docs/03-backend.md, item 4
+-- e docs/04-frontend.md, revisão de design "fechado aos domingos").
+--
+-- Suposição de negócio (documentada, não confirmada com a proprietária):
+-- domingo (dow = 0) é fechado. Ajuste o "0" abaixo se o dia certo for outro.
 create or replace function checar_conflito_agendamento()
 returns trigger
 language plpgsql
@@ -53,6 +57,11 @@ declare
 begin
   if new.status <> 'ativo' then
     return new;
+  end if;
+
+  if extract(dow from new.data) = 0 then
+    raise exception 'O salão não abre aos domingos (%).', new.data
+      using errcode = 'P0001';
   end if;
 
   select duracao_min into duracao_novo from servicos where id = new.servico_id;

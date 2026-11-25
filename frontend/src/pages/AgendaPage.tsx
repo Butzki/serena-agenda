@@ -34,9 +34,11 @@ export function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState<AgendamentoComServico[]>([]);
   const [feriados, setFeriados] = useState<Feriado[]>([]);
   const [expedientes, setExpedientes] = useState<ExpedienteDia[]>([]);
+  const [erroAcao, setErroAcao] = useState('');
 
   const carregar = useCallback(async () => {
     setEstado('loading');
+    setErroAcao('');
     const [resAgendamentos, resFeriados, resExpediente] = await Promise.all([
       supabase.from('agendamentos').select('*, servico:servicos(*)').eq('data', data).order('hora'),
       supabase.from('feriados').select('*'),
@@ -90,6 +92,24 @@ export function AgendaPage() {
   const dataAnterior = iso(addDias(new Date(data + 'T12:00'), -1));
   const dataProxima = iso(addDias(new Date(data + 'T12:00'), 1));
 
+  /** BUG-01 (Aula 05): antes, qualquer erro aqui era ignorado (`if (error) return;`) e a
+      tela ficava parada sem explicação — violava a US-05 AC4. Agora o status anterior é
+      mantido e a mensagem diz o porquê: a regra do banco (ex.: horário já reocupado ao
+      desfazer um "não compareceu") ou falha de conexão. */
+  async function mudarStatus(a: AgendamentoComServico, status: AgendamentoComServico['status'], acao: string) {
+    setErroAcao('');
+    const { error } = await supabase.from('agendamentos').update({ status }).eq('id', a.id);
+    if (error) {
+      setErroAcao(
+        error.code === 'P0001'
+          ? `Não foi possível ${acao} (${a.cliente_nome}): ${error.message}`
+          : `Não foi possível ${acao} (${a.cliente_nome}). Verifique sua conexão e tente de novo.`
+      );
+      return;
+    }
+    carregar();
+  }
+
   async function cancelar(a: AgendamentoComServico) {
     const ok = await confirmar({
       titulo: 'Cancelar agendamento?',
@@ -98,22 +118,16 @@ export function AgendaPage() {
       perigo: true,
     });
     if (!ok) return;
-    const { error } = await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', a.id);
-    if (error) return;
-    carregar();
+    await mudarStatus(a, 'cancelado', 'cancelar');
   }
 
   async function marcarNoShow(a: AgendamentoComServico) {
-    const { error } = await supabase.from('agendamentos').update({ status: 'noshow' }).eq('id', a.id);
-    if (error) return;
-    carregar();
+    await mudarStatus(a, 'noshow', 'marcar "não compareceu"');
   }
 
   /** Corrige um clique indevido em "Não compareceu" (achado no teste heurístico da Aula 02, § 6.2 H3). */
   async function desfazerNoShow(a: AgendamentoComServico) {
-    const { error } = await supabase.from('agendamentos').update({ status: 'ativo' }).eq('id', a.id);
-    if (error) return;
-    carregar();
+    await mudarStatus(a, 'ativo', 'desfazer "não compareceu"');
   }
 
   return (
@@ -165,6 +179,15 @@ export function AgendaPage() {
               <span className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)]">janelas livres</span>
             </div>
           </div>
+
+          {erroAcao && (
+            <p
+              role="alert"
+              className="mt-[var(--esp-4)] rounded-[var(--raio)] px-[var(--esp-4)] py-[var(--esp-3)] text-[length:var(--texto-sm)] border bg-[var(--cor-perigo-fundo)] text-[#7A1913] border-[var(--cor-perigo)]"
+            >
+              {erroAcao}
+            </p>
+          )}
 
           {fechado && (
             <Card borda="aviso" className="mt-[var(--esp-4)]">

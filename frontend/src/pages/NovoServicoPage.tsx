@@ -5,7 +5,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
-import { brl, mascararPrecoCentavos } from '../lib/horarios';
+import { brl, conflito, iso, mascararPrecoCentavos } from '../lib/horarios';
+import type { AgendamentoComServico } from '../lib/types';
 
 type Carregamento = 'loading' | 'pronto' | 'nao-encontrado' | 'error';
 
@@ -20,6 +21,7 @@ export function NovoServicoPage() {
   const [nome, setNome] = useState('');
   const [duracao, setDuracao] = useState('');
   const [precoTexto, setPrecoTexto] = useState('');
+  const [duracaoOriginal, setDuracaoOriginal] = useState<number | null>(null);
   const [erros, setErros] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');
@@ -39,6 +41,7 @@ export function NovoServicoPage() {
       }
       setNome(data.nome);
       setDuracao(String(data.duracao_min));
+      setDuracaoOriginal(data.duracao_min);
       setPrecoTexto(brl(data.preco));
       setCarregamento('pronto');
     })();
@@ -64,6 +67,34 @@ export function NovoServicoPage() {
     const preco = parseInt(precoTexto.replace(/\D/g, '') || '0', 10) / 100;
     const payload = { nome: nome.trim(), duracao_min: +duracao, preco };
 
+    // BUG-03 (Aula 05): aumentar a duração muda, retroativamente, o fim de todos os
+    // agendamentos futuros deste serviço. O trigger do banco só olha `agendamentos`,
+    // então a sobreposição passava em silêncio. Agora a proprietária vê quem vai
+    // colidir e decide (pode ser intencional), em vez de descobrir no dia.
+    if (editando && duracaoOriginal !== null && +duracao > duracaoOriginal) {
+      const sobrepostos = await agendamentosQueVaoSobrepor(+duracao);
+      if (sobrepostos === null) {
+        setSalvando(false);
+        setErroSalvar('Não foi possível verificar a agenda. Verifique sua conexão e tente de novo.');
+        return;
+      }
+      if (sobrepostos.length > 0) {
+        setSalvando(false);
+        const lista = sobrepostos
+          .slice(0, 3)
+          .map((a) => `${a.cliente_nome} em ${a.data.split('-').reverse().slice(0, 2).join('/')} às ${a.hora.slice(0, 5)}`)
+          .join('; ');
+        const ok = await confirmar({
+          titulo: `Mudar para ${duracao} min?`,
+          texto: `${sobrepostos.length} agendamento(s) futuro(s) vão se sobrepor ao próximo horário: ${lista}${sobrepostos.length > 3 ? '…' : ''}. Salvar mesmo assim?`,
+          rotuloOk: 'Salvar mesmo assim',
+          perigo: true,
+        });
+        if (!ok) return;
+        setSalvando(true);
+      }
+    }
+
     const resultado = editando
       ? await supabase.from('servicos').update(payload).eq('id', id)
       : await supabase.from('servicos').insert(payload);
@@ -74,6 +105,29 @@ export function NovoServicoPage() {
       return;
     }
     navigate('/servicos', { state: { toast: 'Serviço salvo.' } });
+  }
+
+  /** Agendamentos ativos de hoje em diante, deste serviço, que passariam a colidir com outro se a duração fosse `novaDuracao`. null = erro de rede. */
+  async function agendamentosQueVaoSobrepor(novaDuracao: number): Promise<AgendamentoComServico[] | null> {
+    const { data, error } = await supabase
+      .from('agendamentos')
+      .select('*, servico:servicos(*)')
+      .gte('data', iso(new Date()))
+      .eq('status', 'ativo');
+    if (error) return null;
+    const comNovaDuracao = (data as unknown as AgendamentoComServico[]).map((a) =>
+      a.servico_id === id && a.servico ? { ...a, servico: { ...a.servico, duracao_min: novaDuracao } } : a
+    );
+    return comNovaDuracao.filter(
+      (a) =>
+        a.servico_id === id &&
+        !!conflito(
+          comNovaDuracao.filter((b) => b.data === a.data),
+          a.hora.slice(0, 5),
+          novaDuracao,
+          a.id
+        )
+    );
   }
 
   async function excluir() {

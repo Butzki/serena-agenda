@@ -12,7 +12,7 @@
 - **Escopo:** 9 RFs, 6 RNFs mensuráveis, 5 histórias de usuário com critérios de aceite testáveis.
 - **Fora do MVP:** login, agendamento pela cliente, lembretes, pagamento, modo offline.
 - **Status:** validado documentalmente com referências (ver [Validação humana](#validação-humana)); falta validar com usuárias reais.
-- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind 🔧 (telas prontas, faltam teste de responsividade e deploy por você — [docs/04-frontend.md](docs/04-frontend.md)).
+- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 75 testes automatizados, 3 bugs corrigidos ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); falta o teste de usabilidade com colegas.
 
 ## Sumário
 
@@ -354,6 +354,18 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 | 02 · Protótipo navegável | 4 telas em HTML (abra `index.html`) | [prototipo/](prototipo/index.html) |
 | 03 · Backend / Supabase | Modelagem, schema SQL, RLS, SDK e teste de CRUD | [docs/03-backend.md](docs/03-backend.md) |
 | 04 · Frontend React/Tailwind | 4 telas reais, estados de UI, revisão de design | [docs/04-frontend.md](docs/04-frontend.md) · [frontend/](frontend/) |
+| 05 · Testes e validação | Plano de testes, rastreabilidade, 3 bugs corrigidos, MoSCoW, usabilidade | [docs/05-testes-validacao.md](docs/05-testes-validacao.md) · [frontend/e2e/](frontend/e2e) |
+
+## Limitações da IA encontradas
+
+Resumo da Aula 05 (detalhes e evidências em [docs/05-testes-validacao.md § 9](docs/05-testes-validacao.md#9--limitações-da-ia-encontradas)):
+
+- **Falsa confiança:** a IA escreveu um caso de teste "válido" que era inválido (`"Pé "` com espaço). O app estava certo; o teste, errado. Só rodar e ler a falha revelou isso.
+- **Contexto incompleto no porte protótipo → React:** dois bugs (erros ignorados em silêncio; "não compareceu" ocupando a agenda) vieram de padrões do protótipo copiados sem checar contra as regras do banco.
+- **"Testado mentalmente" não é teste:** o trigger de conflito foi validado de verdade nesta aula (17 testes de banco), e o bug mais grave (mudar a duração de um serviço sobrepõe agendamentos) estava fora dele.
+- **Decisão de produto é humana:** para o BUG-03, a IA ofereceu "bloquear" e "avisar" com a mesma confiança; a escolha (avisar) foi humana.
+- **Limite de acesso:** a IA não acessa o deploy, um celular real nem colegas. Lighthouse em 4G, teste em Android e teste de usabilidade ficam com pessoas.
+- **Dados:** nenhum segredo foi colado em prompt; os testes usam chave falsa e banco local, nunca a produção.
 
 ## Apêndice · Prompts utilizados
 

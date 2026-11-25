@@ -22,6 +22,12 @@ export type Agendamento = {
 
 export type AgendamentoComServico = Agendamento & { servico: Servico | null };
 
+// Aula 05: configuração única do salão (linha id = 1).
+export type Configuracao = {
+  id: number;
+  antecedencia_max_dias: number;
+};
+
 // v2 (docs/04-frontend.md § 5): dias em que o salão não abre (ex.: Natal).
 export type Feriado = {
   data: string; // YYYY-MM-DD

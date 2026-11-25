@@ -107,12 +107,23 @@ test.describe('US-01 · Cadastrar serviço', () => {
   });
 });
 
-// Bug conhecido, ainda ABERTO (priorizado como Could, ver docs/05 § 6.4).
-// test.fail() = "este teste deve falhar hoje"; quando o bug for corrigido o
-// Playwright acusa e a marcação deve ser removida.
-test('BUG-04 (aberto) · preço acima do limite do banco explica o erro em vez de culpar a conexão', async ({ page }) => {
-  test.fail();
+// BUG-04 (corrigido na Aula 05): preço acima do limite do banco virava "verifique sua conexão".
+test('BUG-04 · a máscara de preço para no limite do banco (R$ 99.999.999,99) e salva', async ({ page }) => {
   await resetarBanco();
-  await criarServicoPelaTela(page, 'Pacote anual', '60', '999999999999'); // R$ 9.999.999.999,99 > numeric(10,2)
-  await expect(page.getByRole('alert')).not.toContainText('Verifique sua conexão', { timeout: 3000 });
+  await criarServicoPelaTela(page, 'Pacote anual', '60', '999999999999'); // 12 dígitos: o excesso é descartado
+  await expect(page.getByRole('status')).toHaveText('Serviço salvo.');
+  expect(await sql(`select preco::text as preco from servicos where nome = 'Pacote anual'`)).toEqual([{ preco: '99999999.99' }]);
+});
+
+test('BUG-04 · erro de dado inválido vindo do banco não culpa a conexão', async ({ page }) => {
+  await resetarBanco();
+  await page.route('**/rest/v1/servicos*', (r) =>
+    r.request().method() === 'POST'
+      ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: '22003', message: 'numeric field overflow' }) })
+      : r.continue()
+  );
+  await criarServicoPelaTela(page, 'Pacote anual', '60', '5000');
+  const alerta = page.getByRole('alert');
+  await expect(alerta).toContainText('O banco recusou algum valor');
+  await expect(alerta).not.toContainText('Verifique sua conexão');
 });

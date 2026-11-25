@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   conflito,
+  dataLimiteAgendamento,
   mascararPrecoCentavos,
   mascararTelefone,
   motivoConflito,
@@ -129,5 +130,17 @@ describe('RF08 · máscaras de entrada', () => {
   });
   it('US-01 AC3 · R$ 0,01', () => {
     expect(mascararPrecoCentavos('1').replace(/\s/g, ' ')).toBe('R$ 0,01');
+  });
+  it('BUG-04 · máscara trunca em 10 dígitos (limite do numeric(10,2): R$ 99.999.999,99)', () => {
+    expect(mascararPrecoCentavos('999999999999').replace(/\s/g, ' ')).toBe('R$ 99.999.999,99');
+  });
+});
+
+describe('Aula 05 · limite de antecedência', () => {
+  it('hoje + 30 dias, atravessando o mês', () => {
+    expect(dataLimiteAgendamento(30, new Date(2026, 10, 25))).toBe('2026-12-25');
+  });
+  it('hoje + 60 dias, atravessando o ano', () => {
+    expect(dataLimiteAgendamento(60, new Date(2026, 10, 25))).toBe('2027-01-24');
   });
 });

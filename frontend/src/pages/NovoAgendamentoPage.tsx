@@ -5,7 +5,15 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
-import { iso, mascararTelefone, motivoConflito, motivoFechado, sugestoes } from '../lib/horarios';
+import {
+  ANTECEDENCIA_PADRAO_DIAS,
+  dataLimiteAgendamento,
+  iso,
+  mascararTelefone,
+  motivoConflito,
+  motivoFechado,
+  sugestoes,
+} from '../lib/horarios';
 import type { AgendamentoComServico, ExpedienteDia, Feriado, Servico } from '../lib/types';
 
 type EstadoServicos = 'loading' | 'pronto' | 'vazio' | 'error';
@@ -21,6 +29,7 @@ export function NovoAgendamentoPage() {
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [feriados, setFeriados] = useState<Feriado[]>([]);
   const [expedientes, setExpedientes] = useState<ExpedienteDia[]>([]);
+  const [antecedenciaDias, setAntecedenciaDias] = useState(ANTECEDENCIA_PADRAO_DIAS);
 
   const [clienteNome, setClienteNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -35,10 +44,11 @@ export function NovoAgendamentoPage() {
 
   useEffect(() => {
     (async () => {
-      const [resServicos, resFeriados, resExpediente] = await Promise.all([
+      const [resServicos, resFeriados, resExpediente, resConfig] = await Promise.all([
         supabase.from('servicos').select('*').order('nome'),
         supabase.from('feriados').select('*'),
         supabase.from('expediente_semana').select('*'),
+        supabase.from('configuracao').select('*').eq('id', 1).maybeSingle(),
       ]);
       if (resServicos.error) {
         setErroServicos(resServicos.error.message);
@@ -48,6 +58,8 @@ export function NovoAgendamentoPage() {
       setServicos(resServicos.data);
       setFeriados(resFeriados.data ?? []);
       setExpedientes(resExpediente.data ?? []);
+      // Se a tabela ainda não existe (schema antigo), vale o padrão de 30 dias.
+      if (resConfig.data?.antecedencia_max_dias) setAntecedenciaDias(resConfig.data.antecedencia_max_dias);
       setEstadoServicos(resServicos.data.length === 0 ? 'vazio' : 'pronto');
       if (resServicos.data.length > 0) setServicoId((atual) => atual || resServicos.data[0].id);
     })();
@@ -61,7 +73,9 @@ export function NovoAgendamentoPage() {
     if (!servicoId) e.servicoId = 'Escolha um serviço.';
     const passado = !data || !hora || new Date(`${data}T${hora}`) < new Date();
     if (!data) e.data = 'Escolha a data.';
-    else {
+    else if (data > dataLimiteAgendamento(antecedenciaDias)) {
+      e.data = `Só é possível agendar até ${antecedenciaDias} dias à frente.`;
+    } else {
       const motivo = motivoFechado(data, feriados, expedientes);
       if (motivo) e.data = `${motivo} Escolha outro dia.`;
     }
@@ -115,6 +129,8 @@ export function NovoAgendamentoPage() {
       // pode disparar em corrida com outra escrita simultânea, mesmo já tendo passado na checagem acima.
       if (
         error.message.includes('Conflito de horário') ||
+        error.message.includes('já passou') ||
+        error.message.includes('dias à frente') ||
         error.message.includes('não abre') ||
         error.message.includes('Fora do horário') ||
         error.message.includes('intervalo de almoço')
@@ -209,7 +225,7 @@ export function NovoAgendamentoPage() {
           ))}
         </Input>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[var(--esp-3)]">
-          <Input id="data" label="Data" type="date" min={iso(new Date())} value={data} onChange={(e) => setData(e.target.value)} erro={erros.data} required />
+          <Input id="data" label="Data" type="date" min={iso(new Date())} max={dataLimiteAgendamento(antecedenciaDias)} value={data} onChange={(e) => setData(e.target.value)} erro={erros.data} required />
           <Input id="hora" label="Hora" type="time" step={900} value={hora} onChange={(e) => setHora(e.target.value)} erro={erros.hora} required />
         </div>
         <p className="rounded-[var(--raio)] px-[var(--esp-4)] py-[var(--esp-3)] text-[length:var(--texto-sm)] border border-[var(--cor-borda)] text-[var(--cor-texto-suave)] bg-[var(--cor-superficie)]">

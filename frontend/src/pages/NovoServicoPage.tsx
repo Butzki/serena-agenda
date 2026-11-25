@@ -101,7 +101,14 @@ export function NovoServicoPage() {
 
     setSalvando(false);
     if (resultado.error) {
-      setErroSalvar('Não foi possível salvar. Verifique sua conexão e tente de novo.');
+      // BUG-04 (Aula 05): antes, QUALQUER erro virava "verifique sua conexão". Códigos 22xxx
+      // (valor fora do tipo) e 23xxx (constraint) são dado inválido, não rede.
+      const dadoInvalido = /^(22|23)/.test(resultado.error.code ?? '');
+      setErroSalvar(
+        dadoInvalido
+          ? 'O banco recusou algum valor (preço ou duração fora do permitido). Confira os campos e tente de novo.'
+          : 'Não foi possível salvar. Verifique sua conexão e tente de novo.'
+      );
       return;
     }
     navigate('/servicos', { state: { toast: 'Serviço salvo.' } });

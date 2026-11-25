@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
-import { NOME_DIA } from '../lib/horarios';
+import { ANTECEDENCIA_PADRAO_DIAS, NOME_DIA } from '../lib/horarios';
 import type { ExpedienteDia, Feriado } from '../lib/types';
 
 type Estado = 'loading' | 'success' | 'error';
@@ -32,15 +32,22 @@ export function HorariosPage() {
   const [erroFeriado, setErroFeriado] = useState('');
   const [salvandoFeriado, setSalvandoFeriado] = useState(false);
 
+  const [antecedencia, setAntecedencia] = useState(String(ANTECEDENCIA_PADRAO_DIAS));
+  const [erroAntecedencia, setErroAntecedencia] = useState('');
+  const [salvandoAntecedencia, setSalvandoAntecedencia] = useState(false);
+  const [antecedenciaSalva, setAntecedenciaSalva] = useState(false);
+
   const [criandoPadrao, setCriandoPadrao] = useState(false);
   const [erroCriarPadrao, setErroCriarPadrao] = useState('');
 
   async function carregar() {
     setEstado('loading');
-    const [resDias, resFeriados] = await Promise.all([
+    const [resDias, resFeriados, resConfig] = await Promise.all([
       supabase.from('expediente_semana').select('*').order('dia_semana'),
       supabase.from('feriados').select('*').order('data'),
+      supabase.from('configuracao').select('*').eq('id', 1).maybeSingle(),
     ]);
+    if (resConfig.data?.antecedencia_max_dias) setAntecedencia(String(resConfig.data.antecedencia_max_dias));
     if (resDias.error) {
       setErro(resDias.error.message);
       setEstado('error');
@@ -133,6 +140,26 @@ export function HorariosPage() {
     }
     setSalvo(true);
     setTimeout(() => setSalvo(false), 4000);
+  }
+
+  /** Limite de antecedência (Aula 05): até quantos dias à frente se pode agendar. Vale na tela e no banco. */
+  async function salvarAntecedencia(ev: React.FormEvent) {
+    ev.preventDefault();
+    setErroAntecedencia('');
+    setAntecedenciaSalva(false);
+    const n = Number(antecedencia);
+    if (!Number.isInteger(n) || n < 1 || n > 365) {
+      setErroAntecedencia('Informe um número de dias entre 1 e 365.');
+      return;
+    }
+    setSalvandoAntecedencia(true);
+    const { error } = await supabase.from('configuracao').upsert({ id: 1, antecedencia_max_dias: n }, { onConflict: 'id' });
+    setSalvandoAntecedencia(false);
+    if (error) {
+      setErroAntecedencia('Não foi possível salvar. Verifique sua conexão e tente de novo.');
+      return;
+    }
+    setAntecedenciaSalva(true);
   }
 
   async function adicionarFeriado(ev: React.FormEvent) {
@@ -310,6 +337,32 @@ export function HorariosPage() {
 
       {estado === 'success' && (
         <>
+          <h2 className="text-[length:var(--texto-lg)] font-bold mt-[var(--esp-6)] mb-[var(--esp-2)]">Antecedência máxima</h2>
+          <p className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)] mb-[var(--esp-3)]">
+            Até quantos dias à frente é possível marcar um horário. Padrão: {ANTECEDENCIA_PADRAO_DIAS} dias.
+          </p>
+          <form onSubmit={salvarAntecedencia} className="grid gap-[var(--esp-3)]">
+            <Input
+              id="antecedencia"
+              label="Dias à frente"
+              value={antecedencia}
+              onChange={(e) => {
+                setAntecedencia(e.target.value.replace(/\D/g, '').slice(0, 3));
+                setAntecedenciaSalva(false);
+              }}
+              inputMode="numeric"
+              erro={erroAntecedencia}
+            />
+            {antecedenciaSalva && (
+              <p role="status" className="text-[length:var(--texto-sm)] font-semibold text-[var(--cor-sucesso)]">
+                Antecedência salva.
+              </p>
+            )}
+            <Button type="submit" variante="secundario" bloco disabled={salvandoAntecedencia}>
+              {salvandoAntecedencia ? 'Salvando…' : 'Salvar antecedência'}
+            </Button>
+          </form>
+
           <h2 className="text-[length:var(--texto-lg)] font-bold mt-[var(--esp-6)] mb-[var(--esp-2)]">Feriados</h2>
           <p className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)] mb-[var(--esp-3)]">
             Dias específicos em que o salão não abre, além do expediente semanal acima.

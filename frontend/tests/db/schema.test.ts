@@ -3,13 +3,17 @@
 // conflito (defesa em profundidade do RF05). Nunca toca o banco de produção.
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
+import { addDias, iso } from '../../src/lib/horarios';
+import { proximoDiaAberto, proximoDomingo } from '../datas';
 // @ts-expect-error módulo JS sem tipos (compartilhado com o servidor dos E2E)
 import { criarBanco } from '../../e2e/support/fake-supabase.mjs';
 
 let db: PGlite;
 let corte: string; // Corte feminino, 60 min (seed)
-const QUARTA = '2026-12-02';
-const DOMINGO = '2026-12-06';
+// Datas relativas a hoje: o trigger agora recusa data passada e além do limite de antecedência.
+const QUARTA = proximoDiaAberto(1); // dia aberto (seg–sáb), amanhã ou depois
+const DOMINGO = proximoDomingo();
+const DOW = new Date(`${QUARTA}T12:00`).getDay();
 
 beforeEach(async () => {
   db = await criarBanco();
@@ -75,11 +79,15 @@ describe('RF05 · trigger checar_conflito_agendamento', () => {
     await insAg('14:00', QUARTA, 'cancelado');
     expect(await insAg('14:00')).toBe('');
   });
-  it('feriado (seed: 25/12) bloqueia', async () => expect(await insAg('10:00', '2026-12-25')).toMatch(/Natal/));
+  it('feriado bloqueia', async () => {
+    const dia = iso(addDias(new Date(), 2));
+    await db.query(`insert into feriados (data, motivo) values ($1, 'Natal de teste')`, [dia]);
+    expect(await insAg('10:00', dia)).toMatch(/Natal de teste/);
+  });
   it('domingo bloqueia', async () => expect(await insAg('10:00', DOMINGO)).toMatch(/não abre nesse dia/));
   it('fora do expediente bloqueia (19:30 + 60 min)', async () => expect(await insAg('19:30')).toMatch(/Fora do horário/));
   it('pausa de almoço configurada bloqueia', async () => {
-    await db.query(`update expediente_semana set pausa_inicio = '12:00', pausa_fim = '13:00' where dia_semana = 3`);
+    await db.query(`update expediente_semana set pausa_inicio = '12:00', pausa_fim = '13:00' where dia_semana = ${DOW}`);
     expect(await insAg('11:30')).toMatch(/almoço/);
   });
   it('excluir serviço mantém o agendamento (on delete set null)', async () => {
@@ -90,10 +98,38 @@ describe('RF05 · trigger checar_conflito_agendamento', () => {
   });
 });
 
-describe('Achado de teste: o banco NÃO valida data passada (US-02 AC2 só no front)', () => {
-  it('insert com data de ontem é aceito pelo banco', async () => {
-    // Documentado em docs/05-testes-validacao.md (BUG-05, Could): a regra existe
-    // só no formulário. Teste "de caracterização": registra o comportamento atual.
-    expect(await insAg('10:00', '2020-01-01')).toBe('');
+describe('BUG-05 · o banco também recusa data passada (US-02 AC2)', () => {
+  it('insert ativo com data passada é recusado', async () => {
+    expect(await insAg('10:00', '2020-01-01')).toMatch(/já passou/);
+  });
+  it('cancelar / "não compareceu" de um agendamento que já passou continua permitido (a regra só vale no insert)', async () => {
+    // Histórico entra com status diferente de ativo; mudar de status depois não pode ser barrado.
+    expect(await insAg('10:00', '2020-01-01', 'noshow')).toBe('');
+    expect(await erro(`update agendamentos set status = 'cancelado'`)).toBe('');
+  });
+});
+
+describe('Aula 05 · limite de antecedência (padrão 30 dias, configurável)', () => {
+  const dias = (n: number) => iso(addDias(new Date(), n));
+  const diaAbertoApos = (n: number) => proximoDiaAberto(n);
+
+  it('configuração padrão é 30 dias', async () => {
+    const { rows } = await db.query('select antecedencia_max_dias from configuracao where id = 1');
+    expect(rows).toEqual([{ antecedencia_max_dias: 30 }]);
+  });
+  it('além de 30 dias é recusado', async () => {
+    expect(await insAg('10:00', dias(31))).toMatch(/até 30 dias/);
+  });
+  it('dentro de 30 dias é aceito', async () => {
+    expect(await insAg('10:00', diaAbertoApos(29))).toBe('');
+  });
+  it('a proprietária aumenta o limite para 60 e passa a valer', async () => {
+    await db.query('update configuracao set antecedencia_max_dias = 60 where id = 1');
+    expect(await insAg('10:00', diaAbertoApos(45))).toBe('');
+    expect(await insAg('10:00', dias(61))).toMatch(/até 60 dias/);
+  });
+  it('limite fora de 1–365 é rejeitado pela constraint', async () => {
+    expect(await erro('update configuracao set antecedencia_max_dias = 0')).toMatch(/antecedencia_max_dias_check/);
+    expect(await erro('update configuracao set antecedencia_max_dias = 400')).toMatch(/antecedencia_max_dias_check/);
   });
 });

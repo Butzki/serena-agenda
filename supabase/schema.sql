@@ -78,6 +78,20 @@ create table if not exists expediente_semana (
 comment on table expediente_semana is 'v2: expediente e pausa (almoço) por dia da semana. Gerenciado pela proprietária no Table Editor — ver docs/04-frontend.md § 5.';
 
 -- ============================================================
+-- 02d · Tabela configuracao (Aula 05 — limite de antecedência)
+-- ============================================================
+-- Linha única (id = 1). antecedencia_max_dias = até quantos dias à frente a
+-- proprietária aceita marcar. Padrão 30; ela muda na tela Horários.
+create table if not exists configuracao (
+  id                   integer primary key default 1 check (id = 1),
+  antecedencia_max_dias integer not null default 30 check (antecedencia_max_dias between 1 and 365)
+);
+
+insert into configuracao (id) values (1) on conflict (id) do nothing;
+
+comment on table configuracao is 'Aula 05: configuração única do salão. antecedencia_max_dias limita quão no futuro um agendamento pode ser criado.';
+
+-- ============================================================
 -- 03 · RF05 — Impedir conflito de horário e expediente inválido (defesa em profundidade)
 -- ============================================================
 -- O front (Aula 02/04) já valida isso antes de enviar. Este trigger garante
@@ -95,9 +109,27 @@ declare
   fim_novo       time;
   motivo_feriado text;
   exp            expediente_semana%rowtype;
+  agora_local    timestamp := now() at time zone 'America/Sao_Paulo';
+  limite_dias    integer;
 begin
   if new.status <> 'ativo' then
     return new;
+  end if;
+
+  -- BUG-05 (Aula 05) + limite de antecedência: só na CRIAÇÃO. Em update (cancelar,
+  -- "não compareceu", desfazer) o agendamento pode, legitimamente, já estar no passado.
+  if tg_op = 'INSERT' then
+    if (new.data + new.hora) < agora_local then
+      raise exception 'Não é possível agendar em horário que já passou.'
+        using errcode = 'P0001';
+    end if;
+
+    select antecedencia_max_dias into limite_dias from configuracao where id = 1;
+    limite_dias := coalesce(limite_dias, 30);
+    if new.data > agora_local::date + limite_dias then
+      raise exception 'Só é possível agendar até % dias à frente.', limite_dias
+        using errcode = 'P0001';
+    end if;
   end if;
 
   select motivo into motivo_feriado from feriados where data = new.data;
@@ -166,6 +198,7 @@ alter table servicos enable row level security;
 alter table agendamentos enable row level security;
 alter table feriados enable row level security;
 alter table expediente_semana enable row level security;
+alter table configuracao enable row level security;
 
 drop policy if exists servicos_select_publico on servicos;
 create policy servicos_select_publico on servicos for select using (true);
@@ -211,3 +244,12 @@ create policy expediente_update_publico on expediente_semana for update using (t
 -- rodou o schema sem o seed (ver HorariosPage.tsx, botão "Criar expediente padrão").
 drop policy if exists expediente_insert_publico on expediente_semana;
 create policy expediente_insert_publico on expediente_semana for insert with check (true);
+
+drop policy if exists configuracao_select_publico on configuracao;
+create policy configuracao_select_publico on configuracao for select using (true);
+
+drop policy if exists configuracao_insert_publico on configuracao;
+create policy configuracao_insert_publico on configuracao for insert with check (true);
+
+drop policy if exists configuracao_update_publico on configuracao;
+create policy configuracao_update_publico on configuracao for update using (true) with check (true);

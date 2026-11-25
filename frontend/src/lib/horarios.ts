@@ -181,7 +181,18 @@ export function mascararTelefone(valor: string): string {
   return d;
 }
 
+/** Padrão do limite de antecedência (dias) quando a tabela `configuracao` não existe ou não responde. */
+export const ANTECEDENCIA_PADRAO_DIAS = 30;
+
+/** Última data (YYYY-MM-DD) em que ainda é permitido criar um agendamento: hoje + N dias. */
+export function dataLimiteAgendamento(dias: number, hoje: Date = new Date()): string {
+  return iso(addDias(hoje, dias));
+}
+
+/** Preço máximo aceito pelo banco: numeric(10,2) = 10 dígitos em centavos (R$ 99.999.999,99). */
+export const PRECO_MAX_DIGITOS = 10;
+
 export function mascararPrecoCentavos(digitosCentavos: string): string {
-  const n = parseInt(digitosCentavos || '0', 10);
+  const n = parseInt((digitosCentavos || '0').slice(0, PRECO_MAX_DIGITOS), 10);
   return brl(n / 100);
 }

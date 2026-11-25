@@ -12,7 +12,7 @@
 - **Escopo:** 9 RFs, 6 RNFs mensuráveis, 5 histórias de usuário com critérios de aceite testáveis.
 - **Fora do MVP:** login, agendamento pela cliente, lembretes, pagamento, modo offline.
 - **Status:** validado documentalmente com referências (ver [Validação humana](#validação-humana)); falta validar com usuárias reais.
-- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 89 testes automatizados, 5 bugs tratados, limite de antecedência e Lighthouse no deploy ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); teste de usabilidade registrado (1 sessão: 3 cliques e ≈ 10 s para cadastrar serviço; 2 a 3 cliques e até 20 s para agendar); falta uma sessão com pessoa que nunca viu o sistema.
+- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 89 testes automatizados, 5 bugs tratados, limite de antecedência e Lighthouse no deploy ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); teste de usabilidade com 2 sessões (cadastrar serviço: 3 cliques, ≈ 10 s; agendar: 2 a 3 cliques, até 20 s, meta < 30 s atendida).
 
 ## Sumário
 

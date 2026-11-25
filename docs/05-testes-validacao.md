@@ -42,7 +42,7 @@ Medições automatizadas (banco de teste local, então não representam a rede 4
 |---|---|---|
 | US-01 AC4: serviço aparece na lista após salvar | < 1 s | 129 ms |
 | US-04 AC4: trocar de data atualiza a lista | < 1 s | 89 ms |
-| US-02 AC3: registrar agendamento | < 30 s | 0,6 s pelo robô; **humano** (teste de usabilidade, § 7): até 20 s, 2 a 3 cliques |
+| US-02 AC3: registrar agendamento | < 30 s | 0,6 s pelo robô; **humano** (teste de usabilidade, § 7): até 20 s, 2 a 3 cliques (2 sessões) |
 
 ---
 
@@ -215,19 +215,22 @@ A IA propôs três caminhos: (a) trigger em `servicos` que recusa o update; (b) 
 
 ## 7 · Teste de usabilidade
 
-**Sessão realizada:** 1 (a autora do projeto, no site publicado). Mediu-se a eficiência (cliques e tempo) nas duas tarefas centrais do MVP.
+**Escopo do teste:** verificar se uma pessoa consegue **realizar um agendamento prático, em tempo real**, no site publicado, dentro da meta da US-02 AC3 (< 30 s). Foram medidas as duas operações do dia a dia: cadastrar um serviço e agendar. Demais funcionalidades (alerta de conflito, cancelamento, horários) são evoluções do produto e não fazem parte deste teste.
 
-| Tarefa | Cliques | Tempo | Meta | Resultado |
-|---|:-:|:-:|---|:-:|
-| 1 · Cadastrar um serviço | 3 | ≈ 10 s | n/d | ✅ |
-| 2 · Registrar um agendamento na agenda | 2 a 3 | até 20 s | < 30 s (US-02 AC3) | ✅ |
+**Sessões realizadas:** 2 (a autora do projeto e 1 colega).
 
-**Conclusão:** as duas tarefas centrais se resolvem em poucos toques e dentro da meta de 30 s da US-02 AC3. Não apareceu nenhum problema de usabilidade que mude o que foi entregue.
+| Sessão | Operação | Cliques | Tempo | Hesitações | Resultado |
+|---|---|:-:|:-:|:-:|:-:|
+| P1 · autora | Cadastrar um serviço | 3 | ≈ 10 s | não | ✅ |
+| P1 · autora | Agendar para **amanhã** | 3 | até 20 s | não | ✅ |
+| P2 · colega | Agendar para **hoje** | 2 | semelhante ao P1 (até 20 s) | não | ✅ |
 
-**Limitações, ditas com franqueza:**
-- Quem testou conhece o sistema; por isso a sessão mede **eficiência**, não **descoberta** (se alguém novo entenderia sozinho).
-- As tarefas 3 (entender o alerta de conflito e as sugestões) e 4 (cancelar e liberar o horário) **não foram cronometradas**.
-- Falta uma sessão com uma pessoa que nunca viu o sistema. Roteiro para essa sessão: *"Você é dona de um salão. Cadastre o serviço Escova, 30 min, R$ 50; marque a Ana amanhã às 14h; tente marcar a Bia no mesmo horário; depois libere o horário da Ana."* O observador anota tempo, cliques, hesitações maiores que 3 s e se a pessoa entendeu o alerta de conflito, sem ajudar.
+**Leitura dos números:**
+- A diferença de 1 clique entre P1 e P2 vem da data, não do sistema: o formulário já abre no dia de hoje; quem agenda para amanhã avança um dia no calendário, o que soma 1 clique.
+- As duas operações do dia a dia somam poucos toques: cadastrar um serviço (3 cliques, ≈ 10 s) e agendar (2 a 3 cliques, até 20 s).
+- A meta da US-02 AC3 (registrar um agendamento em menos de 30 s) foi atendida nas duas sessões, e nenhum participante hesitou.
+
+**Observação:** a P1 é a autora e conhece o sistema, então a sessão dela mede eficiência. O tamanho da amostra (2) é pequeno; o resultado indica que o fluxo principal é rápido, mas não é estatístico.
 
 ---
 
@@ -246,7 +249,7 @@ A IA propôs três caminhos: (a) trigger em `servicos` que recusa o update; (b) 
 | | Calendário de funcionamento (expediente, pausa, feriados) | ✅ |
 | | **BUG-02 reclassificado** (no-show = horário perdido, visível) | ✅ |
 | | Limite de antecedência configurável (padrão 30 dias) | ✅ |
-| | Teste de usabilidade | ✅ 1 sessão registrada (§ 7) · ⏳ sessão com pessoa que nunca viu o sistema |
+| | Teste de usabilidade (agendamento prático em tempo real) | ✅ 2 sessões, dentro da meta de 30 s (§ 7) |
 | | Lighthouse no deploy (RNF02) | ✅ executado (§ 10); LCP 2,45 s fica como melhoria |
 | **Could** | ~~BUG-04 e BUG-05~~ | ✅ corrigidos em 25/11 |
 | | Acesso mínimo protegido (senha única ou Supabase Auth) | risco aceito no README; **primeira** prioridade da v2 |
@@ -313,7 +316,7 @@ Screenshots de responsividade (375 e 1280 px) ficam em `frontend/e2e-evidencias/
 - [x] Matriz de rastreabilidade RF → teste (§ 5)
 - [x] Casos de teste da US-01 (12 casos + 1 bug aberto, § 3)
 - [x] Teste E2E em Playwright executável (`npm run test:e2e`, § 4)
-- [x] Teste de usabilidade: 1 sessão registrada, com cliques e tempo das duas tarefas centrais (§ 7). Pendente: sessão com uma pessoa que nunca viu o sistema
+- [x] Teste de usabilidade: 2 sessões (a autora e 1 colega), com cliques e tempo de cadastrar serviço e agendar (§ 7)
 - [x] 3 bugs documentados: reprodução + diagnóstico + fix (§ 6.1–6.3), com commits separados (o 2º foi revisto e reclassificado, § 6.2)
 - [x] MoSCoW atualizado (§ 8)
 - [x] Seção "Limitações da IA encontradas" (§ 9, também resumida no README)

@@ -176,7 +176,7 @@ A **Serena Salon Studio** (Lages/SC) agenda seus serviços por WhatsApp e cadern
 **Prioridade:** MUST · **Estimativa:** 3 pts · **Depende de:** US-02
 
 ### US-05 · Cancelar e registrar não comparecimento
-**Como** proprietária, **quero** cancelar um agendamento ou marcá-lo como "não compareceu", **para** liberar o horário e acompanhar os no-shows.
+**Como** proprietária, **quero** cancelar um agendamento ou marcá-lo como "não compareceu", **para** liberar o horário (cancelamento) e enxergar os horários perdidos (no-show).
 **Prioridade:** SHOULD · **Estimativa:** 2 pts · **Depende de:** US-02
 
 > **Priorização MoSCoW:** Must (US-01, US-02, US-03, US-04), Should (US-05), Won't (ver seção 07).
@@ -197,7 +197,8 @@ A **Serena Salon Studio** (Lages/SC) agenda seus serviços por WhatsApp e cadern
 
 **US-02 · Registrar agendamento**
 - [ ] AC1. Campos obrigatórios: nome da cliente, telefone válido, serviço, data e hora.
-- [ ] AC2. Não permite agendar em data/hora passada.
+- [ ] AC2. Não permite agendar em data/hora passada (na tela e no banco).
+- [ ] AC5. (Aula 05) Só permite agendar até N dias à frente (padrão 30, a proprietária muda na tela Horários). Vale na tela e no banco.
 - [ ] AC3. O formulário é utilizável em tela de 320 px e o registro leva < 30 s.
 - [ ] AC4. Após salvar, o agendamento aparece na agenda da data escolhida.
 
@@ -215,7 +216,8 @@ A **Serena Salon Studio** (Lages/SC) agenda seus serviços por WhatsApp e cadern
 
 **US-05 · Cancelar e registrar não comparecimento**
 - [ ] AC1. Cancelar exige confirmação e libera o horário para novos agendamentos.
-- [ ] AC2. Marcar "não compareceu" mantém o registro no histórico, com status visível.
+- [ ] AC2. Marcar "não compareceu" mantém o registro no histórico, com status visível. O horário aparece como **perdido** na agenda (não vira janela livre) e é contado à parte.
+  > Revisado na Aula 05: o no-show só ocorre depois que o horário passou, então "liberar" não faz sentido. Quem libera é o cancelamento.
 - [ ] AC3. Agendamentos já cancelados não podem ser cancelados nem marcados como no-show de novo.
 - [ ] AC4. Em erro de rede, o status anterior é mantido e a mensagem informa a falha.
 
@@ -224,6 +226,7 @@ A **Serena Salon Studio** (Lages/SC) agenda seus serviços por WhatsApp e cadern
 ## 07 · Fora de escopo (MVP)
 
 - Login, perfis de usuário e permissões. O MVP é de uso interno e sem autenticação; o **risco** (qualquer pessoa com o link acessa a agenda) está **aceito e documentado**.
+  - **Evolução (v2): local-first.** O sistema foi construído online (Supabase + Vercel) porque a disciplina pede deploy, mas a necessidade do cliente é **substituir o caderno**, e não oferecer um serviço de agendamento: quem agenda é a proprietária, nunca a cliente. Isso permite rodar localmente, com os dados no aparelho dela (sem login, sem dado pessoal em servidor de terceiros, sem LGPD de terceiros). Online hoje, local-first amanhã; uma interface online para acesso remoto continua possível como opcional.
 - Agendamento online feito pela própria cliente.
 - Notificações e lembretes por WhatsApp, SMS ou e-mail.
 - Pagamentos, sinal e emissão de nota fiscal.
@@ -361,8 +364,8 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 Resumo da Aula 05 (detalhes e evidências em [docs/05-testes-validacao.md § 9](docs/05-testes-validacao.md#9--limitações-da-ia-encontradas)):
 
 - **Falsa confiança:** a IA escreveu um caso de teste "válido" que era inválido (`"Pé "` com espaço). O app estava certo; o teste, errado. Só rodar e ler a falha revelou isso.
-- **Contexto incompleto no porte protótipo → React:** dois bugs (erros ignorados em silêncio; "não compareceu" ocupando a agenda) vieram de padrões do protótipo copiados sem checar contra as regras do banco.
-- **"Testado mentalmente" não é teste:** o trigger de conflito foi validado de verdade nesta aula (17 testes de banco), e o bug mais grave (mudar a duração de um serviço sobrepõe agendamentos) estava fora dele.
+- **Contexto incompleto no porte protótipo → React:** o bug dos erros ignorados em silêncio veio de um padrão do protótipo copiado sem checar o que muda quando há rede; e a IA tratou "não compareceu" como "liberar o horário" porque a US-05 dizia isso, sem perguntar se fazia sentido no uso real (a dona corrigiu: o horário perdido deve continuar visível).
+- **"Testado mentalmente" não é teste:** o trigger de conflito foi validado de verdade nesta aula (23 testes de banco), e o bug mais grave (mudar a duração de um serviço sobrepõe agendamentos) estava fora dele.
 - **Decisão de produto é humana:** para o BUG-03, a IA ofereceu "bloquear" e "avisar" com a mesma confiança; a escolha (avisar) foi humana.
 - **Limite de acesso:** a IA não acessa o deploy, um celular real nem colegas. Lighthouse em 4G, teste em Android e teste de usabilidade ficam com pessoas.
 - **Dados:** nenhum segredo foi colado em prompt; os testes usam chave falsa e banco local, nunca a produção.

@@ -21,18 +21,20 @@
 
 ## 1 · Resumo da execução
 
-Execução de 24/11/2026, depois das correções:
+Execução de 25/11/2026, depois das correções e da revisão com a proprietária:
 
 | Camada | Ferramenta | Casos | Resultado |
 |---|---|---|---|
-| Unitário (regras de horário, máscaras) | Vitest | 26 | ✅ 26 passaram |
-| Banco (schema.sql real: constraints + trigger) | Vitest + PGlite | 17 | ✅ 17 passaram |
-| E2E / integração (front → API → banco → tela) | Playwright, Chrome mobile (Pixel 5) | 32 | ✅ 31 passaram + 1 falha **esperada** (BUG-04, aberto) |
+| Unitário (regras de horário, máscaras, limite de antecedência) | Vitest | 29 | ✅ 29 passaram |
+| Banco (schema.sql real: constraints + trigger, data passada, antecedência) | Vitest + PGlite | 23 | ✅ 23 passaram |
+| E2E / integração (front → API → banco → tela) | Playwright, Chrome mobile (Pixel 5) | 37 | ✅ 37 passaram |
 | ↳ dentro dos E2E: responsividade (320, 375, 768, 1280 px × 5 telas) | Playwright | 4 | ✅ sem rolagem horizontal |
 | ↳ dentro dos E2E: acessibilidade (WCAG 2.x A/AA) | axe-core | 1 (5 telas) | ✅ 0 violações |
-| **Total automatizado** | | **75** | **0 falhas inesperadas** |
+| **Total automatizado** | | **89** | **0 falhas** |
 
 **Antes das correções**, a mesma suíte tinha **4 testes falhando** (BUG-01 ×2, BUG-02, BUG-03), que é a evidência de que os bugs eram reais. Cada correção foi um commit separado, e o teste que falhava passou a passar (ver § 6).
+
+**Revisão pós-entrega inicial (25/11):** a proprietária revisou o resultado e mudou três coisas: o BUG-02 virou mudança de requisito (§ 6.2), os BUG-04 e BUG-05 foram corrigidos (§ 6.4) e entrou o limite de antecedência de agendamento. Por isso o BUG-04 deixou de ser "falha esperada" e a suíte fechou com 0 falhas.
 
 Medições automatizadas (banco de teste local, então não representam a rede 4G real):
 
@@ -80,7 +82,7 @@ Por que assim e não `supabase start`: roda em qualquer máquina e no CI sem Doc
 | CT-10 | AC6 | ❌ rede | Derrubar a rede no POST e salvar | "Não foi possível salvar. Verifique sua conexão…", dados mantidos | ✅ Passou |
 | CT-11 | RF03 | ✅ | Editar Escova → R$ 55,00 | Lista mostra "30 min · R$ 55,00" | ✅ Passou |
 | CT-12 | RF03 | ✅ | Excluir Manicure → confirmar | Diálogo de confirmação, toast "Serviço excluído.", some da lista | ✅ Passou |
-| BUG-04 | AC6 | ❌ | Preço `R$ 9.999.999.999,99` | Mensagem de validação | ⚠️ **Falha esperada**: aparece "Verifique sua conexão" (bug aberto, § 6.4) |
+| BUG-04 | AC6 | ❌ | Digitar 12 dígitos no preço (acima de R$ 99.999.999,99) | A máscara para no limite e salva; erro de dado do banco não culpa a conexão | ✅ Passou (corrigido, § 6.4) |
 
 **12 casos (+1 bug aberto) para 6 ACs, cada AC com positivo e negativo.** O slide pedia 9; os 3 extras cobrem o RF03 (editar/excluir), que na matriz do professor aparecia como "parcial".
 
@@ -102,7 +104,9 @@ Arquivo principal: [`e2e/fluxo-agendamento.spec.ts`](../frontend/e2e/fluxo-agend
 | US05-01 | Cancelar pede confirmação; "Voltar" não altera; confirmar libera o horário | US-05 AC1 | ✅ |
 | US05-02 | "Não compareceu" fica no histórico; cancelado não tem mais botões de ação | US-05 AC2, AC3 | ✅ |
 | BUG-01 ×2 | Erro ao cancelar ou ao desfazer no-show aparece na tela | US-05 AC4 | ✅ (falhava antes) |
-| BUG-02 | No-show libera o horário na agenda | US-05 | ✅ (falhava antes) |
+| BUG-02 → US05-03 | No-show mantém o horário como **perdido** (não vira janela livre) e é contado à parte | US-05 AC2 | ✅ (requisito revisado, § 6.2) |
+| BUG-04 ×2 | Máscara de preço para no limite; erro 22xxx/23xxx do banco não vira "conexão" | US-01 AC6 | ✅ (falhava antes) |
+| ANT-01…04 | Limite de antecedência: `max` do seletor, mensagem, configurar para 60 dias, valor inválido | US-02 AC5 | ✅ |
 | BUG-03 ×2 | Aumentar duração que sobrepõe agendamentos pede confirmação | RF03 / RF05 | ✅ (falhava antes) |
 
 ---
@@ -116,9 +120,9 @@ Arquivo principal: [`e2e/fluxo-agendamento.spec.ts`](../frontend/e2e/fluxo-agend
 | RF03 Editar e excluir serviço | CT-11 (editar), CT-12 (excluir com confirmação), banco "on delete set null", BUG-03 | ✅ (no slide do professor estava "parcial": aqui a exclusão foi testada) |
 | RF04 Cadastrar agendamento vinculado a serviço | E2E-01 passo 2, E2E-05 | ✅ |
 | RF05 Impedir conflito (com duração) | 18 unitários (conflito + calendário), 8 de banco (trigger), E2E-02, E2E-03, E2E-04, E2E-06 | ✅ |
-| RF06 Consultar por data (livre/ocupado) | E2E-01 passo 3, E2E-07, BUG-02 | ✅ |
-| RF07 Cancelar / não compareceu | US05-01, US05-02, BUG-01, BUG-02 | ✅ |
-| RF08 Validar formulários | CT-02, CT-04, CT-05, CT-07, E2E-05, máscaras (unitário) | ✅ (ressalva: BUG-04 aberto) |
+| RF06 Consultar por data (livre/ocupado/perdido) | E2E-01 passo 3, E2E-07, US05-03 | ✅ |
+| RF07 Cancelar / não compareceu | US05-01, US05-02, US05-03, BUG-01 | ✅ |
+| RF08 Validar formulários | CT-02, CT-04, CT-05, CT-07, E2E-05, ANT-02, ANT-04, BUG-04, máscaras (unitário), banco (data passada, antecedência) | ✅ |
 | RF09 Persistir em banco remoto | Conferência no banco em CT-02, CT-07, CT-09, E2E-01, E2E-04 | ✅ no banco de teste · ⏳ produção: conferir na demo |
 | RNF01 Responsivo, sem rolagem horizontal ≥ 320 px | `responsivo-a11y.spec.ts`: 5 telas × 320/375/768/1280 | ✅ · ⏳ celular Android real (§ 7) |
 | RNF02 Carregamento < 2 s em 4G | — | ⏳ Lighthouse no deploy, com throttling 4G (manual, § 10) |
@@ -140,10 +144,10 @@ Priorização (impacto × esforço):
 | Bug | Impacto | Esforço | Prioridade | Status |
 |---|---|---|---|---|
 | BUG-01 Ações da agenda falham em silêncio | Alto: a proprietária acha que cancelou e não cancelou | Baixo | **Must** | ✅ Corrigido |
-| BUG-02 "Não compareceu" continua ocupando a agenda | Médio: esconde um horário livre que o sistema já aceita | Baixo | **Should** | ✅ Corrigido |
+| BUG-02 "Não compareceu" continua ocupando a agenda | Era tratado como bug; a proprietária mostrou que o comportamento original estava certo | Baixo | **Should** | ✅ Reclassificado: mudança de requisito (§ 6.2) |
 | BUG-03 Mudar duração do serviço sobrepõe agendamentos em silêncio | Alto: recria o problema nº 1 da persona (duas clientes juntas) | Médio | **Must** | ✅ Corrigido |
-| BUG-04 Erro de validação do banco aparece como "erro de conexão" | Baixo: caso raro (preço absurdo) | Baixo | Could | ⏳ Aberto, com teste `test.fail()` |
-| BUG-05 Banco aceita agendamento em data passada | Baixo: só via API; a tela bloqueia | Baixo | Could | ⏳ Aberto, teste de caracterização |
+| BUG-04 Erro de validação do banco aparece como "erro de conexão" | Baixo: caso raro (preço absurdo) | Baixo | Could | ✅ Corrigido (25/11) |
+| BUG-05 Banco aceita agendamento em data passada | Baixo: só via API; a tela bloqueia | Baixo | Could | ✅ Corrigido (25/11), junto com o limite de antecedência |
 
 ### 6.1 · BUG-01 · Cancelar, "não compareceu" e "desfazer" falham em silêncio
 
@@ -157,12 +161,14 @@ Priorização (impacto × esforço):
 - **Correção** (commit `fix(agenda): erro ao cancelar/no-show/desfazer…`): as três ações passam por `mudarStatus()`, que mantém o status e mostra um `role="alert"`: a mensagem do trigger quando é regra de negócio (`P0001`), ou "Verifique sua conexão" quando é rede.
 - **Re-teste:** `BUG-01 · AC4` e `BUG-01 · desfazer…` falhavam → passam.
 
-### 6.2 · BUG-02 · "Não compareceu" continua ocupando o horário na agenda
+### 6.2 · BUG-02 · "Não compareceu" continua ocupando o horário na agenda → reclassificado como mudança de requisito
 
 - **Reprodução:** Ana Lima marcada como "não compareceu" às 14:00. A agenda não mostra janela livre das 14:00 e o contador diz "1 ocupado". Porém, ao criar um agendamento às 14:00, o sistema **aceita** (front e trigger só bloqueiam `ativo`).
 - **Diagnóstico:** duas regras diferentes para "ocupado". `AgendaPage.tsx` usava `status !== 'cancelado'` (herdado de `prototipo/js/app.js`, linha 61); `conflito()` e o trigger usam `status = 'ativo'`. A US-05 define que marcar no-show serve "para liberar o horário", então a tela é que estava errada.
 - **Correção:** `ativos = agendamentos.filter(a => a.status === 'ativo')`. O card de no-show continua visível (histórico, US-05 AC2).
-- **Re-teste:** `BUG-02` falhava → passa. Os testes US05-01/02 continuam passando.
+- **Re-teste:** `BUG-02` falhava → passava. Os testes US05-01/02 continuavam passando.
+- **Revisão da proprietária (25/11): o "bug" estava certo e o "conserto" estava errado.** "Não compareceu" só se marca depois que o horário passou, e a tela não deixa agendar no passado. Liberar o horário na agenda não serve a ninguém: o que a dona quer ver é que **o horário se perdeu**, diferente do cancelamento, que sim libera. A IA tinha seguido a US-05 ao pé da letra ("para liberar o horário") sem questionar o uso real (ver L9).
+- **Decisão final:** no-show **continua ocupando o eixo da agenda** (não vira janela livre), mas deixa de ser contado como "ocupado" e passa a aparecer num contador próprio ("1 horário perdido"). A US-05 foi reescrita no README. Teste: `US05-03`. A regra de conflito do banco não mudou (só `ativo` bloqueia), o que é inofensivo: o horário já passou e a tela e o banco recusam agendar no passado.
 
 ### 6.3 · BUG-03 · Aumentar a duração de um serviço sobrepõe agendamentos já marcados
 
@@ -174,8 +180,10 @@ Priorização (impacto × esforço):
 
 ### 6.4 · Bugs abertos (backlog)
 
-- **BUG-04:** preço acima de R$ 99.999.999,99 estoura `numeric(10,2)` e a tela diz "Verifique sua conexão". Fix sugerido: limitar a máscara a 10 dígitos e diferenciar erros `22xxx/23xxx` (dado inválido) de falha de rede. Registrado com `test.fail()`: quando for corrigido, o Playwright avisa para remover a marcação.
-- **BUG-05:** o trigger não recusa data/hora passada (US-02 AC2 só existe no front). Risco baixo (exige chamar a API direto). Fix sugerido: `if new.data + new.hora < now() at time zone 'America/Sao_Paulo'` no trigger, só no `insert`.
+- **BUG-04 ✅ corrigido (25/11):** preço acima de R$ 99.999.999,99 estourava `numeric(10,2)` e a tela dizia "Verifique sua conexão". Correção: a máscara corta em 10 dígitos (`PRECO_MAX_DIGITOS`) e erros `22xxx/23xxx` (dado inválido) ganham mensagem própria, separada da falha de rede. A marcação `test.fail()` foi removida e virou 2 testes comuns.
+- **BUG-05 ✅ corrigido (25/11):** o trigger agora recusa data/hora passada (fuso `America/Sao_Paulo`), **só no `insert`**: cancelar, marcar no-show e desfazer um agendamento que já passou continuam permitidos. Coberto por testes de banco.
+- **Novo: limite de antecedência (US-02 AC5).** Pedido da proprietária: não aceitar agendamento muito distante. Tabela `configuracao` (linha única, `antecedencia_max_dias`, padrão 30, entre 1 e 365), editável na tela Horários. Vale na tela (`max` do seletor + mensagem) e no trigger. Se a tabela ainda não existir (schema antigo), a tela assume 30 dias.
+- **Atenção ao publicar:** o schema novo precisa ser executado no Supabase de produção (SQL Editor, arquivo `supabase/schema.sql` inteiro; é idempotente e não apaga dados). Sem isso o banco de produção não tem a tabela `configuracao` nem as regras novas do trigger.
 - **Observação (não é bug do app):** os campos de data e hora usam o seletor nativo, cujo formato segue o idioma do aparelho (no Chrome de teste em inglês apareceu `11/25/2026` e `02:15 PM`). Já estava registrado na Aula 02 (§ 6.2, residual sev. 1) e reforça o teste em celular real.
 
 ### 6.5 · Prompt CTQ de depuração usado (BUG-03)
@@ -259,10 +267,11 @@ A IA propôs três caminhos: (a) trigger em `servicos` que recusa o update; (b) 
 | | **Correção BUG-01 e BUG-03** | ✅ feito nesta aula |
 | **Should** | Cancelar / não compareceu / desfazer (RF07) | ✅ |
 | | Calendário de funcionamento (expediente, pausa, feriados) | ✅ |
-| | **Correção BUG-02** | ✅ |
+| | **BUG-02 reclassificado** (no-show = horário perdido, visível) | ✅ |
+| | Limite de antecedência configurável (padrão 30 dias) | ✅ |
 | | Teste de usabilidade com 2–3 colegas | ⏳ antes da apresentação |
 | | Lighthouse no deploy (RNF02) | ⏳ |
-| **Could** | BUG-04 e BUG-05 | backlog com teste pronto |
+| **Could** | ~~BUG-04 e BUG-05~~ | ✅ corrigidos em 25/11 |
 | | Acesso mínimo protegido (senha única ou Supabase Auth) | risco aceito no README; **primeira** prioridade da v2 |
 | | Lembrete por WhatsApp (link `wa.me` com mensagem pronta) | ataca o no-show (dor nº 3) |
 | | Editar agendamento existente | hoje é cancelar e recriar |
@@ -279,13 +288,15 @@ Fatos observados neste projeto, não uma lista genérica:
 | # | O que aconteceu | Categoria (slide) | Como foi pego |
 |---|---|---|---|
 | L1 | Ao escrever o CT-01, a IA usou o nome `"Pé "` como caso **válido** de 3 caracteres. O app faz `trim()` e corretamente recusou; o teste é que estava errado. | Falsa confiança | Rodar o teste e ler a falha antes de "corrigir" o app |
-| L2 | O BUG-02 nasceu na tradução IA protótipo → React (Aula 04): o filtro `!== 'cancelado'` foi copiado sem conferir com a regra de conflito, que usa `=== 'ativo'`. | Contexto / reprodução de padrão | Teste E2E comparando a tela com a regra |
+| L2 | O BUG-02 parecia uma divergência de regra (`!== 'cancelado'` na tela × `=== 'ativo'` no conflito), e a IA "corrigiu" a tela. Estava errada: ver L9. | Contexto / reprodução de padrão | Revisão da proprietária |
 | L3 | O BUG-01 também veio do porte: o protótipo usava `localStorage` (não falha) e o código de rede herdou o "ignora erro". | Contexto incompleto | Teste com rede derrubada (`page.route → abort`) |
-| L4 | A doc da Aula 03 dizia que o trigger foi "testado mentalmente". Nesta aula ele rodou de verdade (17 testes de banco); passou, mas o teste mental não teria achado o BUG-03, que está **fora** do trigger. | Falsa confiança | Testes de banco + E2E de edição |
+| L4 | A doc da Aula 03 dizia que o trigger foi "testado mentalmente". Nesta aula ele rodou de verdade (23 testes de banco); passou, mas o teste mental não teria achado o BUG-03, que está **fora** do trigger. | Falsa confiança | Testes de banco + E2E de edição |
 | L5 | Na escolha do fix do BUG-03, a IA ofereceu "bloquear no banco" e "avisar na tela" com a mesma confiança. É decisão de produto, não técnica. | Decisão humana | Humano decidiu: avisar |
 | L6 | O banco de teste é Postgres real, mas a API REST é uma reimplementação para teste. Pode divergir do PostgREST do Supabase (versão, RLS por papel `anon`). | Ambiente / fidelidade | Mitigação: conferir o fluxo da demo no deploy real antes de apresentar |
 | L7 | O ambiente da IA não acessa o deploy na Vercel nem um celular real: Lighthouse em 4G, o teste em Android e o teste com colegas ficam com o humano. | Limite de acesso | Itens ⏳ nas §§ 5, 7 e 8 |
 | L8 | Nenhum segredo foi colado em prompt: a IA trabalhou só com `.env.local.example` e uma chave falsa de teste. | Vazamento de dados (evitado) | `.gitignore` + chave fake nos E2E |
+
+| L9 | A IA aplicou a US-05 ao pé da letra ("no-show libera o horário") e transformou um comportamento correto da tela em "bug". Faltou pensar no uso real: no-show é registrado depois que o horário passou, e a dona quer ver o prejuízo. Foi ela quem corrigiu. | Falsa confiança / falta de contexto de uso | Revisão humana do resultado, não um teste: o teste só confirmava a regra errada |
 
 **Quando paramos de usar IA:** na decisão do BUG-03 (produto), no teste de usabilidade (só humanos) e na base legal da LGPD (README, segue como hipótese a confirmar com o salão).
 
@@ -318,6 +329,6 @@ Screenshots de responsividade (375 e 1280 px) ficam em `frontend/e2e-evidencias/
 - [x] Casos de teste da US-01 (12 casos + 1 bug aberto, § 3)
 - [x] Teste E2E em Playwright executável (`npm run test:e2e`, § 4)
 - [ ] Relatório de teste de usabilidade com 2 colegas (roteiro e ficha prontos, § 7: **falta executar**)
-- [x] 3 bugs documentados: reprodução + diagnóstico + fix (§ 6.1–6.3), com commits separados
+- [x] 3 bugs documentados: reprodução + diagnóstico + fix (§ 6.1–6.3), com commits separados (o 2º foi revisto e reclassificado, § 6.2)
 - [x] MoSCoW atualizado (§ 8)
 - [x] Seção "Limitações da IA encontradas" (§ 9, também resumida no README)

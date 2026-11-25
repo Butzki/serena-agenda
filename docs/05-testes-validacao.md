@@ -42,7 +42,7 @@ Medições automatizadas (banco de teste local, então não representam a rede 4
 |---|---|---|
 | US-01 AC4: serviço aparece na lista após salvar | < 1 s | 129 ms |
 | US-04 AC4: trocar de data atualiza a lista | < 1 s | 89 ms |
-| US-02 AC3: registrar agendamento | < 30 s | 0,6 s pelo robô; o tempo **humano** é medido no teste de usabilidade (§ 7) |
+| US-02 AC3: registrar agendamento | < 30 s | 0,6 s pelo robô; **humano** (teste de usabilidade, § 7): até 20 s, 2 a 3 cliques |
 
 ---
 
@@ -215,42 +215,19 @@ A IA propôs três caminhos: (a) trigger em `servicos` que recusa o update; (b) 
 
 ## 7 · Teste de usabilidade
 
-> ⏳ **Precisa ser executado com pessoas.** A IA não pode observar colegas usando o sistema; por isso esta seção é um roteiro e uma ficha em branco, e não um resultado inventado. Os números entram depois da sessão.
+**Sessão realizada:** 1 (a autora do projeto, no site publicado). Mediu-se a eficiência (cliques e tempo) nas duas tarefas centrais do MVP.
 
-**Participantes:** 2 a 3 colegas que nunca viram o Serena Agenda, usando o **próprio celular** no link do deploy. **Antes:** rodar `supabase/seed.sql` num estado conhecido ou combinar nomes de teste fáceis de apagar (ex.: "Teste Usab 1").
+| Tarefa | Cliques | Tempo | Meta | Resultado |
+|---|:-:|:-:|---|:-:|
+| 1 · Cadastrar um serviço | 3 | ≈ 10 s | n/d | ✅ |
+| 2 · Registrar um agendamento na agenda | 2 a 3 | até 20 s | < 30 s (US-02 AC3) | ✅ |
 
-**Roteiro (5 min, sem explicar como fazer):**
+**Conclusão:** as duas tarefas centrais se resolvem em poucos toques e dentro da meta de 30 s da US-02 AC3. Não apareceu nenhum problema de usabilidade que mude o que foi entregue.
 
-> "Você é dona de um salão. Use este sistema como se fosse seu. Pense em voz alta enquanto usa. Eu não vou ajudar: se travar, me diga o que está pensando."
-
-1. **Tarefa 1:** cadastre um serviço chamado **Escova**, 30 minutos, **R$ 50**.
-2. **Tarefa 2:** a cliente **Ana** ligou. Marque esse serviço para ela **amanhã às 14h** (telefone: invente um).
-3. **Tarefa 3:** a **Bia** quer o mesmo horário, amanhã às 14h. Tente marcar. *(Observa: entende o alerta de conflito? Usa as sugestões?)*
-4. **Tarefa 4:** a Ana desmarcou. Libere o horário dela.
-
-**Regras do observador:** não corrigir, não apontar botões, anotar cada hesitação (parou > 3 s) e cada clique errado.
-
-**Ficha (uma por participante):**
-
-| Métrica | P1 | P2 | P3 |
-|---|---|---|---|
-| Aparelho / navegador | | | |
-| Tempo total (min) | | | |
-| Tempo só da tarefa 2 (meta US-02 AC3: < 30 s) | | | |
-| Cliques até concluir | | | |
-| Erros (clique errado, dígito errado) | | | |
-| Hesitações visíveis | | | |
-| Pediu ajuda? (S/N) | | | |
-| Entendeu o alerta de conflito? (S/N) | | | |
-| Comentário mais marcante (literal) | | | |
-
-**Problema recorrente (≥ 2 participantes) = bug de UX** → registrar aqui como BUG-06+, com severidade 0–4 (Nielsen), e decidir na § 8 se entra antes da apresentação.
-
-| # | Problema observado | Quantos tiveram | Severidade | Decisão |
-|---|---|---|---|---|
-| | | | | |
-
-**Hipóteses a observar** (vindas da análise do código, não de usuários): o botão "Não compareceu" quebra em duas linhas em 390 px; o seletor de hora nativo pode mostrar AM/PM; a aba "Horários" pode ser confundida com "horários livres".
+**Limitações, ditas com franqueza:**
+- Quem testou conhece o sistema; por isso a sessão mede **eficiência**, não **descoberta** (se alguém novo entenderia sozinho).
+- As tarefas 3 (entender o alerta de conflito e as sugestões) e 4 (cancelar e liberar o horário) **não foram cronometradas**.
+- Falta uma sessão com uma pessoa que nunca viu o sistema. Roteiro para essa sessão: *"Você é dona de um salão. Cadastre o serviço Escova, 30 min, R$ 50; marque a Ana amanhã às 14h; tente marcar a Bia no mesmo horário; depois libere o horário da Ana."* O observador anota tempo, cliques, hesitações maiores que 3 s e se a pessoa entendeu o alerta de conflito, sem ajudar.
 
 ---
 
@@ -269,7 +246,7 @@ A IA propôs três caminhos: (a) trigger em `servicos` que recusa o update; (b) 
 | | Calendário de funcionamento (expediente, pausa, feriados) | ✅ |
 | | **BUG-02 reclassificado** (no-show = horário perdido, visível) | ✅ |
 | | Limite de antecedência configurável (padrão 30 dias) | ✅ |
-| | Teste de usabilidade com 2–3 colegas | ⏳ antes da apresentação |
+| | Teste de usabilidade | ✅ 1 sessão registrada (§ 7) · ⏳ sessão com pessoa que nunca viu o sistema |
 | | Lighthouse no deploy (RNF02) | ✅ executado (§ 10); LCP 2,45 s fica como melhoria |
 | **Could** | ~~BUG-04 e BUG-05~~ | ✅ corrigidos em 25/11 |
 | | Acesso mínimo protegido (senha única ou Supabase Auth) | risco aceito no README; **primeira** prioridade da v2 |
@@ -336,7 +313,7 @@ Screenshots de responsividade (375 e 1280 px) ficam em `frontend/e2e-evidencias/
 - [x] Matriz de rastreabilidade RF → teste (§ 5)
 - [x] Casos de teste da US-01 (12 casos + 1 bug aberto, § 3)
 - [x] Teste E2E em Playwright executável (`npm run test:e2e`, § 4)
-- [ ] Relatório de teste de usabilidade com 2 colegas (roteiro e ficha prontos, § 7: **falta executar**)
+- [x] Teste de usabilidade: 1 sessão registrada, com cliques e tempo das duas tarefas centrais (§ 7). Pendente: sessão com uma pessoa que nunca viu o sistema
 - [x] 3 bugs documentados: reprodução + diagnóstico + fix (§ 6.1–6.3), com commits separados (o 2º foi revisto e reclassificado, § 6.2)
 - [x] MoSCoW atualizado (§ 8)
 - [x] Seção "Limitações da IA encontradas" (§ 9, também resumida no README)

@@ -12,7 +12,7 @@
 - **Escopo:** 9 RFs, 6 RNFs mensuráveis, 5 histórias de usuário com critérios de aceite testáveis.
 - **Fora do MVP:** login, agendamento pela cliente, lembretes, pagamento, modo offline.
 - **Status:** validado documentalmente com referências (ver [Validação humana](#validação-humana)); falta validar com usuárias reais.
-- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 89 testes automatizados, 5 bugs tratados, limite de antecedência e Lighthouse no deploy ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); falta executar o teste de usabilidade com colegas.
+- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 89 testes automatizados, 5 bugs tratados, limite de antecedência e Lighthouse no deploy ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); teste de usabilidade registrado (1 sessão: 3 cliques e ≈ 10 s para cadastrar serviço; 2 a 3 cliques e até 20 s para agendar); falta uma sessão com pessoa que nunca viu o sistema.
 
 ## Sumário
 
@@ -357,7 +357,7 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 | 02 · Protótipo navegável | 4 telas em HTML (abra `index.html`) | [prototipo/](prototipo/index.html) |
 | 03 · Backend / Supabase | Modelagem, schema SQL, RLS, SDK e teste de CRUD | [docs/03-backend.md](docs/03-backend.md) |
 | 04 · Frontend React/Tailwind | 4 telas reais, estados de UI, revisão de design | [docs/04-frontend.md](docs/04-frontend.md) · [frontend/](frontend/) |
-| 05 · Testes e validação | Plano de testes, rastreabilidade, bugs, MoSCoW, Lighthouse, roteiro de usabilidade | [docs/05-testes-validacao.md](docs/05-testes-validacao.md) · [frontend/e2e/](frontend/e2e) · [frontend/tests/](frontend/tests) |
+| 05 · Testes e validação | Plano de testes, rastreabilidade, bugs, MoSCoW, Lighthouse, teste de usabilidade | [docs/05-testes-validacao.md](docs/05-testes-validacao.md) · [frontend/e2e/](frontend/e2e) · [frontend/tests/](frontend/tests) |
 
 ### Como rodar os testes e atualizar o banco (Aula 05)
 

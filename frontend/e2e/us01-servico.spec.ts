@@ -106,3 +106,13 @@ test.describe('US-01 · Cadastrar serviço', () => {
     await expect(page.getByRole('list', { name: 'Serviços cadastrados' }).getByText('Manicure')).toHaveCount(0);
   });
 });
+
+// Bug conhecido, ainda ABERTO (priorizado como Could, ver docs/05 § 6.4).
+// test.fail() = "este teste deve falhar hoje"; quando o bug for corrigido o
+// Playwright acusa e a marcação deve ser removida.
+test('BUG-04 (aberto) · preço acima do limite do banco explica o erro em vez de culpar a conexão', async ({ page }) => {
+  test.fail();
+  await resetarBanco();
+  await criarServicoPelaTela(page, 'Pacote anual', '60', '999999999999'); // R$ 9.999.999.999,99 > numeric(10,2)
+  await expect(page.getByRole('alert')).not.toContainText('Verifique sua conexão', { timeout: 3000 });
+});

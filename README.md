@@ -12,7 +12,7 @@
 - **Escopo:** 9 RFs, 6 RNFs mensuráveis, 5 histórias de usuário com critérios de aceite testáveis.
 - **Fora do MVP:** login, agendamento pela cliente, lembretes, pagamento, modo offline.
 - **Status:** validado documentalmente com referências (ver [Validação humana](#validação-humana)); falta validar com usuárias reais.
-- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 75 testes automatizados, 3 bugs corrigidos ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); falta o teste de usabilidade com colegas.
+- **Progresso por aula:** 01 Requisitos ✅ · 02 UX/UI e protótipo ✅ · 03 Backend/Supabase ✅ ([docs/03-backend.md](docs/03-backend.md)) · 04 Frontend React/Tailwind ✅ ([docs/04-frontend.md](docs/04-frontend.md), no ar em <https://serena-agenda.vercel.app/agenda>) · 05 Testes e validação ✅ 89 testes automatizados, 5 bugs tratados, limite de antecedência e Lighthouse no deploy ([docs/05-testes-validacao.md](docs/05-testes-validacao.md)); falta executar o teste de usabilidade com colegas.
 
 ## Sumário
 
@@ -261,7 +261,7 @@ Checklist do exercício aplicado ao documento. Resultado: ✅ atendido · ⚠️
 | RNF | Mensurável? | Ferramenta de verificação |
 |---|---|---|
 | RNF01 | ✅ largura mínima 320 px | DevTools (modo responsivo) |
-| RNF02 | ✅ LCP ≤ 2,5 s; meta < 2 s | Lighthouse / DevTools |
+| RNF02 | ✅ LCP ≤ 2,5 s; meta < 2 s (medido no deploy: FCP 1,0 s, LCP 2,45 s) | Lighthouse / DevTools |
 | RNF03 | ✅ contraste, alvo de toque, nota a11y | Lighthouse, axe, checagem manual por teclado |
 | RNF04 | ✅ ≥ 99 % | SLA/painel do provedor |
 | RNF05 | ✅ auditoria de bundle, HTTPS, campos coletados | Inspeção do build e do formulário |
@@ -357,7 +357,19 @@ As dependências são naturais em um CRUD e estão explícitas em cada história
 | 02 · Protótipo navegável | 4 telas em HTML (abra `index.html`) | [prototipo/](prototipo/index.html) |
 | 03 · Backend / Supabase | Modelagem, schema SQL, RLS, SDK e teste de CRUD | [docs/03-backend.md](docs/03-backend.md) |
 | 04 · Frontend React/Tailwind | 4 telas reais, estados de UI, revisão de design | [docs/04-frontend.md](docs/04-frontend.md) · [frontend/](frontend/) |
-| 05 · Testes e validação | Plano de testes, rastreabilidade, 3 bugs corrigidos, MoSCoW, usabilidade | [docs/05-testes-validacao.md](docs/05-testes-validacao.md) · [frontend/e2e/](frontend/e2e) |
+| 05 · Testes e validação | Plano de testes, rastreabilidade, bugs, MoSCoW, Lighthouse, roteiro de usabilidade | [docs/05-testes-validacao.md](docs/05-testes-validacao.md) · [frontend/e2e/](frontend/e2e) · [frontend/tests/](frontend/tests) |
+
+### Como rodar os testes e atualizar o banco (Aula 05)
+
+```bash
+cd frontend
+npm install
+npx playwright install chromium   # 1ª vez
+npm test                          # unitários + banco (Vitest): 52 testes
+npm run test:e2e                  # E2E (Playwright): 37 testes, usa banco de teste local
+```
+
+Os testes nunca tocam o banco de produção. Para publicar as regras novas da Aula 05 (data passada, limite de antecedência, tabela `configuracao`), rode o arquivo [`supabase/schema.sql`](supabase/schema.sql) inteiro no SQL Editor do Supabase; ele é idempotente e não apaga dados.
 
 ## Limitações da IA encontradas
 

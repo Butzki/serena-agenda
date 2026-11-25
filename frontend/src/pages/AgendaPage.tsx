@@ -60,10 +60,13 @@ export function AgendaPage() {
     carregar();
   }, [carregar]);
 
-  // BUG-02 (Aula 05): era `status !== 'cancelado'`, então "não compareceu" continuava
-  // ocupando a agenda e o contador, embora a regra de conflito (front e trigger) já
-  // liberasse o horário. US-05: marcar no-show serve para "liberar o horário".
+  // "Não compareceu" só acontece depois que o horário passou (e a tela não deixa agendar no
+  // passado), então o horário não volta a ficar livre: ele aparece como PERDIDO, para a dona
+  // enxergar o prejuízo. Por isso entra no eixo de ocupação da agenda (não vira "janela livre"),
+  // mas é contado à parte de "ocupados". Cancelado, sim, libera o horário.
+  // (Aula 05: BUG-02 foi reclassificado como mudança de requisito, docs/05 § 6.2.)
   const ativos = agendamentos.filter((a) => a.status === 'ativo');
+  const perdidos = agendamentos.filter((a) => a.status === 'noshow');
   const todos = agendamentos;
   const motivo = motivoFechado(data, feriados, expedientes);
   const fechado = !!motivo;
@@ -74,7 +77,7 @@ export function AgendaPage() {
     const abre = min(expediente.hora_abre.slice(0, 5));
     const fecha = min(expediente.hora_fecha.slice(0, 5));
     let cursor = abre;
-    intervalosOcupados(ativos, expediente).forEach(({ ini, fim }) => {
+    intervalosOcupados([...ativos, ...perdidos], expediente).forEach(({ ini, fim }) => {
       if (ini - cursor >= 30) itens.push({ tipo: 'livre', t: cursor, de: cursor, ate: ini });
       cursor = Math.max(cursor, fim);
     });
@@ -175,6 +178,14 @@ export function AgendaPage() {
               <b className="block text-[length:var(--texto-xl)] text-[var(--cor-primaria)]">{ativos.length}</b>
               <span className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)]">ocupados</span>
             </div>
+            {perdidos.length > 0 && (
+              <div className="flex-1 text-center bg-[var(--cor-superficie)] border border-[var(--cor-borda)] rounded-[var(--raio)] p-[var(--esp-3)]">
+                <b className="block text-[length:var(--texto-xl)] text-[var(--cor-perigo)]">{perdidos.length}</b>
+                <span className="text-[var(--cor-texto-suave)] text-[length:var(--texto-sm)]">
+                  {perdidos.length === 1 ? 'horário perdido' : 'horários perdidos'}
+                </span>
+              </div>
+            )}
             <div className="flex-1 text-center bg-[var(--cor-superficie)] border border-[var(--cor-borda)] rounded-[var(--raio)] p-[var(--esp-3)]">
               <b className="block text-[length:var(--texto-xl)] text-[var(--cor-sucesso)]">
                 {itens.filter((i) => i.tipo === 'livre').length}

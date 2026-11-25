@@ -52,12 +52,16 @@ test('BUG-01 · desfazer "não compareceu" num horário já reocupado explica o 
   expect(await sql(`select status from agendamentos where cliente_nome = 'Ana Lima'`)).toEqual([{ status: 'noshow' }]);
 });
 
-test('BUG-02 · "não compareceu" libera o horário também na tela da agenda', async ({ page }) => {
+test('US05-03 · "não compareceu" mantém o horário como PERDIDO na agenda (não vira janela livre)', async ({ page }) => {
+  // Decisão de produto (Aula 05, revisão do BUG-02): o no-show só acontece depois que o horário
+  // passou, então a dona precisa ver que o horário se perdeu, e não uma janela livre.
   const dia = proximoDiaAberto(1);
   await agendarNoBanco('Ana Lima', 'Corte feminino', dia, '14:00', 'noshow');
   await page.goto(`/agenda?data=${dia}`);
-  // A regra de conflito (front e banco) já permite agendar às 14:00;
-  // a agenda precisa mostrar o mesmo: dia inteiro livre e 0 ocupados.
-  await expect(page.getByText(/Livre das 08:00 às 20:00/)).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Resumo do dia' })).toContainText('0ocupados');
+  await expect(page.getByText(/Livre das 08:00 às 14:00/)).toBeVisible();
+  await expect(page.getByText(/Livre das 15:00 às 20:00/)).toBeVisible();
+  await expect(page.getByText(/Livre das 08:00 às 20:00/)).toHaveCount(0);
+  const resumo = page.getByRole('group', { name: 'Resumo do dia' });
+  await expect(resumo).toContainText('0ocupados');
+  await expect(resumo).toContainText('1horário perdido');
 });

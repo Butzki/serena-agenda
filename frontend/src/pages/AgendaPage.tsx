@@ -60,7 +60,10 @@ export function AgendaPage() {
     carregar();
   }, [carregar]);
 
-  const ativos = agendamentos.filter((a) => a.status !== 'cancelado');
+  // BUG-02 (Aula 05): era `status !== 'cancelado'`, então "não compareceu" continuava
+  // ocupando a agenda e o contador, embora a regra de conflito (front e trigger) já
+  // liberasse o horário. US-05: marcar no-show serve para "liberar o horário".
+  const ativos = agendamentos.filter((a) => a.status === 'ativo');
   const todos = agendamentos;
   const motivo = motivoFechado(data, feriados, expedientes);
   const fechado = !!motivo;
